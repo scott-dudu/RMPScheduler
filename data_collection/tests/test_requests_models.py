@@ -1,4 +1,4 @@
-from models import CourseRequest, SemesterRequest, Semester
+from models import Course, Request, Semester
 from datetime import datetime
 
 
@@ -7,11 +7,11 @@ from datetime import datetime
 # -------------------------
 
 def test_valid_enum_semester():
-    request = SemesterRequest(
+    request = Request(
         semester=Semester.FALL,
         year=datetime.now().year,
         courses=[
-            CourseRequest("CS", "146")
+            Course("CS", "146")
         ]
     )
 
@@ -19,11 +19,11 @@ def test_valid_enum_semester():
 
 
 def test_valid_string_semester():
-    request = SemesterRequest(
+    request = Request(
         semester="fall",
         year=datetime.now().year,
         courses=[
-            CourseRequest("CS", "146")
+            Course("CS", "146")
         ]
     )
 
@@ -31,13 +31,13 @@ def test_valid_string_semester():
 
 
 def test_valid_multiple_courses():
-    request = SemesterRequest(
+    request = Request(
         semester="spring",
         year=datetime.now().year,
         courses=[
-            CourseRequest("CS", "146"),
-            CourseRequest("CS", "151"),
-            CourseRequest("MATH", "161A")
+            Course("CS", "146"),
+            Course("CS", "151"),
+            Course("MATH", "161A")
         ]
     )
 
@@ -46,11 +46,11 @@ def test_valid_multiple_courses():
 
 def test_max_courses():
     courses = [
-        CourseRequest("CS", str(i))
+        Course("CS", str(i))
         for i in range(8)
     ]
 
-    request = SemesterRequest(
+    request = Request(
         semester="summer",
         year=datetime.now().year,
         courses=courses
@@ -67,10 +67,10 @@ def test_year_too_old():
     current_year = datetime.now().year
 
     try:
-        SemesterRequest(
+        Request(
             semester="fall",
             year=current_year - 2,
-            courses=[CourseRequest("CS", "146")]
+            courses=[Course("CS", "146")]
         )
         assert False, "Expected ValueError"
     except ValueError:
@@ -81,10 +81,10 @@ def test_year_too_far_future():
     current_year = datetime.now().year
 
     try:
-        SemesterRequest(
+        Request(
             semester="fall",
             year=current_year + 2,
-            courses=[CourseRequest("CS", "146")]
+            courses=[Course("CS", "146")]
         )
         assert False, "Expected ValueError"
     except ValueError:
@@ -97,7 +97,7 @@ def test_year_too_far_future():
 
 def test_empty_courses():
     try:
-        SemesterRequest(
+        Request(
             semester="fall",
             year=datetime.now().year,
             courses=[]
@@ -109,12 +109,12 @@ def test_empty_courses():
 
 def test_too_many_courses():
     courses = [
-        CourseRequest("CS", str(i))
+        Course("CS", str(i))
         for i in range(9)
     ]
 
     try:
-        SemesterRequest(
+        Request(
             semester="fall",
             year=datetime.now().year,
             courses=courses
@@ -126,7 +126,7 @@ def test_too_many_courses():
 
 def test_courses_not_list():
     try:
-        SemesterRequest(
+        Request(
             semester="fall",
             year=datetime.now().year,
             courses="CS 146"
@@ -138,11 +138,11 @@ def test_courses_not_list():
 
 def test_invalid_object_in_courses():
     try:
-        SemesterRequest(
+        Request(
             semester="fall",
             year=datetime.now().year,
             courses=[
-                CourseRequest("CS", "146"),
+                Course("CS", "146"),
                 "CS 151"
             ]
         )
@@ -157,10 +157,10 @@ def test_invalid_object_in_courses():
 
 def test_invalid_semester_string():
     try:
-        SemesterRequest(
+        Request(
             semester="autumn",
             year=datetime.now().year,
-            courses=[CourseRequest("CS", "146")]
+            courses=[Course("CS", "146")]
         )
         assert False, "Expected ValueError"
     except ValueError:
@@ -169,10 +169,10 @@ def test_invalid_semester_string():
 
 def test_invalid_semester_type():
     try:
-        SemesterRequest(
+        Request(
             semester=123,
             year=datetime.now().year,
-            courses=[CourseRequest("CS", "146")]
+            courses=[Course("CS", "146")]
         )
         assert False, "Expected TypeError"
     except TypeError:

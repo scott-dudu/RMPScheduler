@@ -8,16 +8,18 @@ class Semester(Enum):
     WINTER = "Winter"
     SUMMER = "Summer"
 
+
 @dataclass
-class CourseRequest:
+class Course:
     course_dept: str
     course_num: str
 
+
 @dataclass
-class SemesterRequest:
+class Request:
     semester: Semester
     year: int
-    courses: list[CourseRequest]
+    courses: list[Course]
 
     def __post_init__(self):
         # Validate year
@@ -39,8 +41,8 @@ class SemesterRequest:
         if not 1 <= len_courses <= max_courses:
             raise ValueError(f"Number of courses must be between 1 and {max_courses}, got: {len_courses}")
 
-        if not all(isinstance(course, CourseRequest) for course in self.courses):
-            raise TypeError("All items in courses must be instances of CourseRequest")
+        if not all(isinstance(course, Course) for course in self.courses):
+            raise TypeError("All items in courses must be instances of Course")
 
         # Validate semester
         if not isinstance(self.semester, Semester):

@@ -14,6 +14,19 @@ class Course:
     course_dept: str
     course_num: str
 
+    def __post_init__(self):
+        if not isinstance(self.course_dept, str):
+            raise TypeError(f"Course department must be a string, got: {type(self.course_dept)}")
+
+        if not self.course_dept.strip():
+            raise ValueError("Course department cannot be empty")
+
+        if not isinstance(self.course_num, str):
+            raise TypeError(f"Course number must be a string, got: {type(self.course_num)}")
+
+        if not self.course_num.strip():
+            raise ValueError("Course number cannot be empty")
+
 
 @dataclass(frozen=True)
 class Request:

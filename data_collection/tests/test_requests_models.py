@@ -1,3 +1,4 @@
+import pytest
 from models import Course, Request, Semester
 from datetime import datetime
 
@@ -66,29 +67,23 @@ def test_max_courses():
 def test_year_too_old():
     current_year = datetime.now().year
 
-    try:
+    with pytest.raises(ValueError):
         Request(
             semester="fall",
             year=current_year - 2,
             courses=[Course("CS", "146")]
         )
-        assert False, "Expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_year_too_far_future():
     current_year = datetime.now().year
 
-    try:
+    with pytest.raises(ValueError):
         Request(
             semester="fall",
             year=current_year + 2,
             courses=[Course("CS", "146")]
         )
-        assert False, "Expected ValueError"
-    except ValueError:
-        pass
 
 
 # -------------------------
@@ -96,15 +91,12 @@ def test_year_too_far_future():
 # -------------------------
 
 def test_empty_courses():
-    try:
+    with pytest.raises(ValueError):
         Request(
             semester="fall",
             year=datetime.now().year,
             courses=[]
         )
-        assert False, "Expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_too_many_courses():
@@ -113,31 +105,25 @@ def test_too_many_courses():
         for i in range(9)
     ]
 
-    try:
+    with pytest.raises(ValueError):
         Request(
             semester="fall",
             year=datetime.now().year,
             courses=courses
         )
-        assert False, "Expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_courses_not_list():
-    try:
+    with pytest.raises(TypeError):
         Request(
             semester="fall",
             year=datetime.now().year,
             courses="CS 146"
         )
-        assert False, "Expected TypeError"
-    except TypeError:
-        pass
 
 
 def test_invalid_object_in_courses():
-    try:
+    with pytest.raises(TypeError):
         Request(
             semester="fall",
             year=datetime.now().year,
@@ -146,9 +132,26 @@ def test_invalid_object_in_courses():
                 "CS 151"
             ]
         )
-        assert False, "Expected TypeError"
-    except TypeError:
-        pass
+
+
+def test_course_with_empty_department():
+    with pytest.raises(ValueError):
+        Course("", "146")
+
+
+def test_course_with_empty_number():
+    with pytest.raises(ValueError):
+        Course("CS", "")
+
+
+def test_course_with_non_string_department():
+    with pytest.raises(TypeError):
+        Course(123, "146")
+
+
+def test_course_with_non_string_number():
+    with pytest.raises(TypeError):
+        Course("CS", 146)
 
 
 # -------------------------
@@ -156,24 +159,18 @@ def test_invalid_object_in_courses():
 # -------------------------
 
 def test_invalid_semester_string():
-    try:
+    with pytest.raises(ValueError):
         Request(
             semester="autumn",
             year=datetime.now().year,
             courses=[Course("CS", "146")]
         )
-        assert False, "Expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_invalid_semester_type():
-    try:
+    with pytest.raises(TypeError):
         Request(
             semester=123,
             year=datetime.now().year,
             courses=[Course("CS", "146")]
         )
-        assert False, "Expected TypeError"
-    except TypeError:
-        pass

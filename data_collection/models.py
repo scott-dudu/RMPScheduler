@@ -30,7 +30,7 @@ class Course:
 
 @dataclass(frozen=True)
 class Request:
-    semester: Semester
+    semester: Semester | str
     year: int
     courses: list[Course]
 
@@ -61,7 +61,11 @@ class Request:
         if not isinstance(self.semester, Semester):
             if not isinstance(self.semester, str):
                 raise TypeError(f"Semester must be a string or Semester enum, got: {type(self.semester)}")
-            self.semester = Semester(self.semester.capitalize())
+            object.__setattr__(
+                self,
+                "semester",
+                Semester(self.semester.capitalize())
+            )
 
 
 @dataclass(frozen=True)

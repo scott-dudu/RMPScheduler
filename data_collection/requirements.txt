@@ -1,0 +1,5 @@
+# For testing
+pytest==9.0.2
+
+# For web scraping
+requests==2.34.0 

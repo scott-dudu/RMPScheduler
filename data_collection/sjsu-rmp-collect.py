@@ -8,12 +8,23 @@ __SJSU_RMP_URL = 'https://www.ratemyprofessors.com/search/professors/881?q='
 
 class SemesterNotFoundError(Exception):
     """Exception raise when the semester is not found in the SJSU class schedule."""
-    pass
+    def __init__(self, message: str, semester: Semester, year: int):
+        super().__init__(message)
+        self.semester = semester
+        self.year = year
+        
+    def __str__(self):
+        return f'{self.args[0]}: {self.semester.value} {self.year}'
 
 
 class CoursesNotFoundError(Exception):
     """Exception raise when the courses are not found in the SJSU class schedule for the given semester."""
-    pass
+    def __init__(self, message: str, courses: list[Course]):
+        super().__init__(message)
+        self.courses = courses
+        
+    def __str__(self):
+        return f'{self.args[0]}: {"\n\t".join([str(course) for course in self.courses])}'
 
 
 def _get_semester_url(semester: Semester, year: int) -> str:

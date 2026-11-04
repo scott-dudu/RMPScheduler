@@ -25,7 +25,9 @@ class CoursesNotFoundError(Exception):
         
     def __str__(self):
         courses_text = '\n\t'.join([str(course) for course in self.courses])
-        return f'{self.args[0]}:\n\t{courses_text}'
+        if courses_text:
+            courses_text = f'\n\t{courses_text}'
+        return f'{self.args[0]}:{courses_text}'
 
 
 def _get_semester_url(semester: Semester, year: int) -> str:

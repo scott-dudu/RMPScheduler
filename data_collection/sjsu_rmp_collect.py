@@ -1,4 +1,5 @@
 import requests
+from bs4 import BeautifulSoup
 from models import Request, Response, Semester, Course, Professor
 
 
@@ -43,8 +44,36 @@ def _get_semester_url(semester: Semester, year: int) -> str:
 
     Raises:
         SemesterNotFoundError: If the semester is not found in the SJSU class schedule.
+        requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
     """
-    pass
+    # Fetch the HTML content and raise an exception if the request fails.
+    req = requests.get(__SJSU_CLASS_URL)
+    req.raise_for_status()
+    
+    # Parse the HTML content
+    page = BeautifulSoup(req.text, 'html.parser')
+    
+    # Find the requested semester and year in the HTML content.
+    str_to_find = f'{semester.value} {year}'
+    semester_element = next(
+        (
+            item for item in page.find_all('li')
+            if str_to_find in item.get_text(' ', strip=True)
+        ),
+        None
+    )
+    
+    if semester_element is None:
+        raise SemesterNotFoundError('Semester not found', semester, year)
+    
+    # Get the URL within the element
+    link = semester_element.find('a')
+    href = link.get('href') if link else None
+    if href is None:
+        raise SemesterNotFoundError('Semester has not been published', semester, year)
+    
+    # Return the URL for the given semester and year.
+    return href
 
 
 def _check_valid_request(request: Request) -> None:

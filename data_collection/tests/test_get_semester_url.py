@@ -17,7 +17,7 @@ class FakeResponse:
 
 
 def test_get_semester_url_returns_url(monkeypatch):
-    html = '<a href="/classes/fall2026">Fall 2026 Class Schedule</a>'
+    html = '<li><a href="/classes/fall2026">Fall 2026 Class Schedule</a></li>'
 
     response = FakeResponse(html)
 
@@ -48,7 +48,7 @@ def test_get_semester_url_raises_http_error(monkeypatch):
 
 
 def test_get_semester_url_raises_when_not_found(monkeypatch):
-    html = '<a href="/classes/spring2026">Spring 2026 Class Schedule</a>'
+    html = '<li><a href="/classes/spring2026">Spring 2026 Class Schedule</a></li>'
 
     monkeypatch.setattr(
         module.requests,
@@ -67,7 +67,7 @@ def test_get_semester_url_raises_when_not_found(monkeypatch):
 
 
 def test_get_semester_url_raises_when_not_published(monkeypatch):
-    html = "<a>Fall 2026 Class Schedule</a>"
+    html = "<li>Fall 2026 Class Schedule</li>"
 
     monkeypatch.setattr(
         module.requests,

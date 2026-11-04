@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 from models import Request, Response, Semester, Course, Professor
 
 
-__SJSU_CLASS_URL = 'https://www.sjsu.edu/classes/schedules/index.php'
+__SJSU_URL = 'https://www.sjsu.edu'
+__SEM_PATH = '/classes/schedules/index.php'
 __SJSU_RMP_URL = 'https://www.ratemyprofessors.com/search/professors/881?q='
 
 
@@ -47,7 +48,7 @@ def _get_semester_url(semester: Semester, year: int) -> str:
         requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
     """
     # Fetch the HTML content and raise an exception if the request fails.
-    req = requests.get(__SJSU_CLASS_URL)
+    req = requests.get(f'{__SJSU_URL}{__SEM_PATH}')
     req.raise_for_status()
     
     # Parse the HTML content
@@ -76,15 +77,20 @@ def _get_semester_url(semester: Semester, year: int) -> str:
     return href
 
 
-def _check_valid_request(request: Request) -> None:
+def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]]:
     """
-    Validates the given request object to see if the semester and courses are available.
+    Fetches the professors for each course in the given request object.
     
     Args:
-        request (Request): The request object to validate.
+        request (Request): The request object containing the courses to fetch professors for.
         
+    Returns:
+        dict[Course, list[Professor]]: A dictionary mapping each course to a list of professors.
+
     Raises:
+        SemesterNotFoundError: If the semester is not found in the SJSU class schedule.
         CoursesNotFoundError: If any of the courses are not found in the SJSU class schedule for the given semester.
+        requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
     """
     pass
 

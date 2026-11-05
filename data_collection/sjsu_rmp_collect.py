@@ -124,9 +124,39 @@ class Collector:
         """
         text = days_tag.get_text(strip=True)
         text = text.split('<br>') if '<br>' in text else list(text)
-        return [Day(day) for day in text]
+        return [Day(day.strip()) for day in text]
 
 
+    def _normalize_time(self, time_str: str) -> str:
+        """
+        Normalizes the time string from the SJSU class schedule to HH:MM format.
+        
+        Args:
+            time_str (str): The time string from the SJSU class schedule.
+            
+        Returns:
+            str: The normalized time string in HH:MM format.
+        """
+        time_str = time_str.strip()
+        if not time_str:
+            return ""
+        
+        # Split the time into hours and minutes
+        hours, minutes = time_str.split(':')
+        
+        # Normalize hours and minutes
+        hours = int(hours)
+        minutes = int(minutes)
+        
+        # Convert to 24-hour format if necessary
+        if 'PM' in time_str.upper() and hours != 12:
+            hours += 12
+        elif 'AM' in time_str.upper() and hours == 12:
+            hours = 0
+        
+        return f"{hours:02}:{minutes:02}"
+    
+    
     def _parse_time(self, time_tag: Tag) -> tuple[list[str], list[str]]:
         """
         Parses the time string from the SJSU class schedule to get the start and end times.
@@ -137,7 +167,19 @@ class Collector:
         Returns:
             tuple[list[str], list[str]]: A tuple containing lists of the start and end times as strings in HH:MM format.
         """
-        pass
+        text = time_tag.get_text(strip=True)
+        text = text.split('<br>') if '<br>' in text else [text]
+        
+        start_times = []
+        end_times = []
+        for time in text:
+            if ':' not in time:
+                continue # Skip invalid time formats
+            start, end = time.split('-')
+            start_times.append(self._normalize_time(start))
+            end_times.append(self._normalize_time(end))
+        
+        return (start_times, end_times)
 
 
     def _parse_professors(self, professors_tag: Tag) -> list[Professor]:

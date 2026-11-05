@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -71,11 +71,10 @@ class Request:
             )
 
 
-@dataclass(frozen=True)
 class Professor:
     name: str
-    rating: float
-    tags: dict[str, int]
+    rating: float=0.0
+    tags: dict[str, int]=field(default_factory=dict)
     class_times: list[str]
 
     def __post_init__(self):

@@ -77,7 +77,7 @@ def _get_semester_url(semester: Semester, year: int) -> str:
     return href
 
 
-def _get_professors_per_course(request: Request) -> dict[Course, set[str]]:
+def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]]:
     """
     Fetches the professors for each course in the given request object.
     
@@ -85,7 +85,7 @@ def _get_professors_per_course(request: Request) -> dict[Course, set[str]]:
         request (Request): The request object containing the courses to fetch professors for.
         
     Returns:
-        dict[Course, set[str]]: A dictionary mapping each course to a set of professor names.
+        dict[Course, list[Professor]]: A dictionary mapping each course to a list of professor objects.
 
     Raises:
         SemesterNotFoundError: If the semester is not found in the SJSU class schedule.

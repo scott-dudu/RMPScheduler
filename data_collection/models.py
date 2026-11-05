@@ -20,9 +20,9 @@ class Day(Enum):
 
 
 class ClassMode(Enum):
-    IN_PERSON = "In Person"
-    ONLINE = "Online"
-    HYBRID = "Hybrid"
+    IN_PERSON = "in person"
+    ONLINE = "online"
+    HYBRID = "hybrid"
 
 
 @dataclass(frozen=True)
@@ -114,6 +114,7 @@ class ClassTime:
 @dataclass
 class Professor:
     name: str
+    email: str
     rating: float=0.0
     tags: dict[str, int]=field(default_factory=dict)
     class_times: list[ClassTime]=field(default_factory=list)
@@ -121,6 +122,9 @@ class Professor:
     def __post_init__(self):
         if not isinstance(self.name, str):
             raise TypeError("Name must be a string")
+
+        if not isinstance(self.email, str):
+            raise TypeError("Email must be a string")
 
         if not isinstance(self.rating, (int, float)):
             raise TypeError("Rating must be a number")

@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup, Tag
 from collections.abc import Iterable
 from itertools import chain
-from models import Request, Response, Semester, Course, Professor
+from models import *
 
 
 __SJSU_URL = 'https://www.sjsu.edu'
@@ -79,16 +79,106 @@ def _get_semester_url(semester: Semester, year: int) -> str:
     return href
 
 
-def _get_professors(course_elements: Iterable[Tag]) -> list[Professor]:
+def _parse_header(header: Iterable[Tag]) -> dict[str, int]:
+    """
+    Parses the header of the SJSU class schedule table to get the index of each relevant column.
+    
+    Args:
+        header (Iterable[Tag]): An iterable of header elements from the SJSU class schedule table.
+        
+    Returns:
+        dict[str, int]: A dictionary mapping each relevant column name to its index.
+    """
+    pass
+
+
+def _parse_days(days_str: str) -> list[Day]:
+    """
+    Parses the days string from the SJSU class schedule to get a list of Day enums.
+    
+    Args:
+        days_str (str): The days string from the SJSU class schedule.
+        
+    Returns:
+        list[Day]: A list of Day enums representing the days of the week for the class.
+    """
+    pass
+
+
+def _parse_time(time_str: str) -> tuple[str, str]:
+    """
+    Parses the time string from the SJSU class schedule to get the start and end times.
+    
+    Args:
+        time_str (str): The time string from the SJSU class schedule.
+        
+    Returns:
+        tuple[str, str]: A tuple containing the start and end times as strings in HH:MM format.
+    """
+    pass
+
+
+def _get_professors(header: dict[str, int], course_elements: Iterable[Tag]) -> list[Professor]:
     """
     Fetches the professors for the given course elements
     
     Args:
+        header (dict[str, int]): A dictionary mapping each relevant column name to its index.
         course_elements (Iterable[Tag]): An iterable of course elements from the SJSU class schedule.
         
     Returns:
         list[Professor]: A list of professor objects for the given course elements.
     """
+    professors = []
+    for course in course_elements:
+        course_data = course.find_all('td')
+        professor_cell = course_data[header['Instructor']]
+
+        # Get the professor name, mode, day, and time.
+        professor_name = professor_cell.get_text(' ', strip=True)
+
+        # If professor name is empty or TBA, skip the course
+        if not professor_name or professor_name.lower() == 'tba':
+            continue
+
+        mode = course_data[header['Mode']].get_text(' ', strip=True).lower()
+        days = _parse_days(course_data[header['Days']].get_text(' ', strip=True))
+        time = _parse_time(course_data[header['Time']].get_text(' ', strip=True))
+
+        professor_link = professor_cell.find('a')
+        professor_email = (
+            professor_link.get("href")
+            if professor_link is not None
+            else None
+        )
+        
+        if professor_email:
+            professor_email = professor_email.removeprefix('mailto:')
+
+        # Create a ClassTime object for the professor's class time.
+        class_time = ClassTime(
+            mode=ClassMode(mode),
+            days=days,
+            start_time=time[0],
+            end_time=time[1]
+        )
+
+        # Check if the professor is already in the list, and if so, add the class time to their class times.
+        if professor_email is not None:
+            existing_professor = next((prof for prof in professors if prof.email == professor_email), None)
+        else:
+            existing_professor = next((prof for prof in professors if prof.name == professor_name), None)
+
+        if existing_professor is None:
+            existing_professor = Professor(
+                name=professor_name,
+                email=professor_email
+            )
+            professors.append(existing_professor)
+
+        existing_professor.class_times.append(class_time)
+
+    return professors
 
 
 def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]]:
@@ -122,6 +212,9 @@ def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]
     # Parse the HTML content
     page = BeautifulSoup(req.text, 'html.parser')
 
+    # Get the header mapping.
+    header = _parse_header(page.find_all('th'))
+
     # Find the courses in the HTML content and fetch the professors and times for each course.
     for course in courses_to_fetch:
         # Find the course in the HTML content
@@ -145,7 +238,7 @@ def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]
         course_elements = chain([first_element], course_elements)
 
         # Fetch the professors and times for the course
-        course_professors = _get_professors(course_elements)
+        course_professors = _get_professors(header, course_elements)
         professors[course] = course_professors
     
     # If any courses were not found, raise an exception

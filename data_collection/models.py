@@ -109,15 +109,32 @@ class ClassTime:
 
         if not isinstance(self.end_time, str):
             raise TypeError(f"End time must be a string, got: {type(self.end_time)}")
+        
 
+@dataclass
+class Section:
+    section_num: int
+    class_time: ClassTime
+    professors: list[Professor]=field(default_factory=list)
+    
+    def __post_init__(self):
+        if not isinstance(self.section_num, int):
+            raise TypeError("Section number must be an integer")
+
+        if not isinstance(self.class_time, ClassTime):
+            raise TypeError("Class time must be a ClassTime object")
+
+        if not isinstance(self.professors, list):
+            raise TypeError("Professors must be a list")
+
+        if not all(isinstance(professor, Professor) for professor in self.professors):
+            raise TypeError("All items in professors must be instances of Professor")
 
 @dataclass
 class Professor:
     name: str
     email: str
-    rating: float=0.0
-    tags: dict[str, int]=field(default_factory=dict)
-    class_times: list[ClassTime]=field(default_factory=list)
+    rating: Rating | None=None
 
     def __post_init__(self):
         if not isinstance(self.name, str):
@@ -126,32 +143,47 @@ class Professor:
         if not isinstance(self.email, str):
             raise TypeError("Email must be a string")
 
-        if not isinstance(self.rating, (int, float)):
-            raise TypeError("Rating must be a number")
+        if not isinstance(self.rating, Rating):
+            raise TypeError("Rating must be a Rating object")
 
-        if not 0 <= self.rating <= 5:
-            raise ValueError(f"Rating must be between 0 and 5, got: {self.rating}")
 
-        if not isinstance(self.tags, dict):
-            raise TypeError("Tags must be a dictionary")
+@dataclass
+class Rating:
+    quality: float
+    difficulty: float
+    top_reviews: list[str]=field(default_factory=list)
+    least_reviews: list[str]=field(default_factory=list)
+    tags: list[str]=field(default_factory=list)
+    
+    def __post_init__(self):
+        if not isinstance(self.quality, float):
+            raise TypeError("Quality must be a float")
 
-        if not all(
-            isinstance(tag, str) and isinstance(count, int)
-            for tag, count in self.tags.items()
-        ):
-            raise TypeError("Tags must contain str keys and int values")
+        if not isinstance(self.difficulty, float):
+            raise TypeError("Difficulty must be a float")
 
-        if not isinstance(self.class_times, list):
-            raise TypeError("Class times must be a list")
+        if not isinstance(self.top_reviews, list):
+            raise TypeError("Top reviews must be a list")
 
-        if not all(isinstance(time, ClassTime) for time in self.class_times):
-            raise TypeError("Class times must contain only ClassTime objects")
+        if not all(isinstance(review, str) for review in self.top_reviews):
+            raise TypeError("All items in top reviews must be strings")
 
+        if not isinstance(self.least_reviews, list):
+            raise TypeError("Least reviews must be a list")
+
+        if not all(isinstance(review, str) for review in self.least_reviews):
+            raise TypeError("All items in least reviews must be strings")
+
+        if not isinstance(self.tags, list):
+            raise TypeError("Tags must be a list")
+
+        if not all(isinstance(tag, str) for tag in self.tags):
+            raise TypeError("All items in tags must be strings")
 
 @dataclass(frozen=True)
 class Response:
     request: Request
-    results: dict[Course, list[Professor]]
+    results: dict[Course, list[Section]]
 
     def __post_init__(self):
         if not isinstance(self.request, Request):
@@ -160,12 +192,12 @@ class Response:
         if not isinstance(self.results, dict):
             raise TypeError("Results must be a dictionary")
 
-        for course, professors in self.results.items():
+        for course, sections in self.results.items():
             if not isinstance(course, Course):
                 raise TypeError("Results keys must be Course objects")
 
-            if not isinstance(professors, list):
+            if not isinstance(sections, list):
                 raise TypeError("Results values must be lists")
 
-            if not all(isinstance(p, Professor) for p in professors):
-                raise TypeError("Results values must contain only Professor objects")
+            if not all(isinstance(s, Section) for s in sections):
+                raise TypeError("Results values must contain only Section objects")

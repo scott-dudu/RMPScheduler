@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup, Tag
 from collections.abc import Iterable
 from itertools import chain
+from enum import Enum
 from models import *
 
 
@@ -32,10 +33,18 @@ class CoursesNotFoundError(Exception):
         if courses_text:
             courses_text = f'\n\t{courses_text}'
         return f'{self.args[0]}:{courses_text}'
+    
+
+class Headers(Enum):
+    SECTION = 'Section'
+    MODE = 'Mode'
+    DAYS = 'Days'
+    TIME = 'Time'
+    INSTRUCTOR = 'Instructor'
 
 class Collector:
     def __init__(self):
-        self.__professors = []
+        self.__professors = {}
     
     def _get_semester_url(self, semester: Semester, year: int) -> str:
         """
@@ -92,7 +101,15 @@ class Collector:
         Returns:
             dict[str, int]: A dictionary mapping each relevant column name to its index.
         """
-        pass
+        header_mapping = {}
+        headers = [header.value for header in Headers]
+        for index, item in enumerate(header):
+            text = item.get_text(strip=True)
+            for header_name in headers:
+                if header_name in text:
+                    header_mapping[header_name] = index
+                    break
+        return header_mapping
 
 
     def _parse_days(self, days_tag: Tag) -> list[Day]:
@@ -150,14 +167,14 @@ class Collector:
             course_data = course.find_all('td')
             
             # Get the section number, class time, and professors for the section of the course
-            professors = self._parse_professors(course_data[header['Instructor']])
+            professors = self._parse_professors(course_data[header[Headers.INSTRUCTOR.value]])
             if not professors:
                 continue  # Skip sections with no professors listed
             
-            section_num = int(course_data[header['Section']].get_text(strip=True))
-            mode = ClassMode(course_data[header['Mode']].get_text(strip=True))
-            days = self._parse_days(course_data[header['Days']])
-            start_time, end_time = self._parse_time(course_data[header['Time']])
+            section_num = int(course_data[header[Headers.SECTION.value]].get_text(strip=True))
+            mode = ClassMode(course_data[header[Headers.MODE.value]].get_text(strip=True))
+            days = self._parse_days(course_data[header[Headers.DAYS.value]])
+            start_time, end_time = self._parse_time(course_data[header[Headers.TIME.value]])
             
             class_time = ClassTime(
                 mode=mode,

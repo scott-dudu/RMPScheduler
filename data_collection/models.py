@@ -10,13 +10,13 @@ class Semester(Enum):
     
     
 class Day(Enum):
-    MONDAY = "M"
-    TUESDAY = "T"
-    WEDNESDAY = "W"
-    THURSDAY = "R"
-    FRIDAY = "F"
-    SATURDAY = "S"
-    SUNDAY = "U"
+    MONDAY = "Monday"
+    TUESDAY = "Tuesday"
+    WEDNESDAY = "Wednesday"
+    THURSDAY = "Thursday"
+    FRIDAY = "Friday"
+    SATURDAY = "Saturday"
+    SUNDAY = "Sunday"
 
 
 class ClassMode(Enum):

@@ -102,12 +102,11 @@ class Collector:
             dict[str, int]: A dictionary mapping each relevant column name to its index.
         """
         header_mapping = {}
-        headers = [h.value for h in Headers]
         for index, item in enumerate(header):
             text = item.get_text(strip=True)
-            for header_name in headers:
-                if header_name in text:
-                    header_mapping[header_name] = index
+            for header_name in Headers:
+                if header_name.value in text:
+                    header_mapping[header_name.value] = index
                     break
         return header_mapping
 
@@ -122,9 +121,20 @@ class Collector:
         Returns:
             list[Day]: A list of Day enums representing the days of the week for the class.
         """
-        text = days_tag.get_text(strip=True)
-        text = text.split('<br>') if '<br>' in text else list(text)
-        return [Day(day.strip()) for day in text]
+        text = days_tag.get_text(' ', strip=True)
+        text = text.split() if ' ' in text else list(text)
+        
+        day_mapping = {
+            'M': Day.MONDAY,
+            'T': Day.TUESDAY,
+            'W': Day.WEDNESDAY,
+            'R': Day.THURSDAY,
+            'F': Day.FRIDAY,
+            'S': Day.SATURDAY,
+            'U': Day.SUNDAY
+        }
+        
+        return [day_mapping.get(day.strip()) for day in text]
 
 
     def _normalize_time(self, time_str: str) -> str:
@@ -137,7 +147,7 @@ class Collector:
         Returns:
             str: The normalized time string in HH:MM format.
         """
-        time_str = time_str.strip()
+        time_str = time_str.strip().upper()
         if not time_str:
             return ""
         
@@ -146,12 +156,12 @@ class Collector:
         
         # Normalize hours and minutes
         hours = int(hours)
-        minutes = int(minutes)
+        minutes = int(minutes.removeprefix('AM').removeprefix('PM'))
         
         # Convert to 24-hour format if necessary
-        if 'PM' in time_str.upper() and hours != 12:
+        if 'PM' in time_str and hours != 12:
             hours += 12
-        elif 'AM' in time_str.upper() and hours == 12:
+        elif 'AM' in time_str and hours == 12:
             hours = 0
         
         return f"{hours:02}:{minutes:02}"
@@ -167,8 +177,7 @@ class Collector:
         Returns:
             tuple[list[str], list[str]]: A tuple containing lists of the start and end times as strings in HH:MM format.
         """
-        text = time_tag.get_text(strip=True)
-        text = text.split('<br>') if '<br>' in text else [text]
+        text = time_tag.get_text(' ', strip=True).split()
         
         start_times = []
         end_times = []

@@ -7,6 +7,22 @@ class Semester(Enum):
     SPRING = "Spring"
     WINTER = "Winter"
     SUMMER = "Summer"
+    
+    
+class Day(Enum):
+    MONDAY = "Monday"
+    TUESDAY = "Tuesday"
+    WEDNESDAY = "Wednesday"
+    THURSDAY = "Thursday"
+    FRIDAY = "Friday"
+    SATURDAY = "Saturday"
+    SUNDAY = "Sunday"
+
+
+class ClassMode(Enum):
+    IN_PERSON = "In Person"
+    ONLINE = "Online"
+    HYBRID = "Hybrid"
 
 
 @dataclass(frozen=True)
@@ -71,11 +87,34 @@ class Request:
             )
 
 
+class ClassTime:
+    mode: ClassMode
+    days: list[Day]
+    start_time: str='00:00'
+    end_time: str='23:59'
+
+    def __post_init__(self):
+        if not isinstance(self.mode, ClassMode):
+            raise TypeError(f"Mode must be a ClassMode enum, got: {type(self.mode)}")
+
+        if not isinstance(self.days, list):
+            raise TypeError(f"Days must be a list, got: {type(self.days)}")
+
+        if not all(isinstance(day, Day) for day in self.days):
+            raise TypeError("All items in days must be instances of Day enum")
+
+        if not isinstance(self.start_time, str):
+            raise TypeError(f"Start time must be a string, got: {type(self.start_time)}")
+
+        if not isinstance(self.end_time, str):
+            raise TypeError(f"End time must be a string, got: {type(self.end_time)}")
+
+
 class Professor:
     name: str
     rating: float=0.0
     tags: dict[str, int]=field(default_factory=dict)
-    class_times: list[str]
+    class_times: list[ClassTime]
 
     def __post_init__(self):
         if not isinstance(self.name, str):
@@ -99,8 +138,8 @@ class Professor:
         if not isinstance(self.class_times, list):
             raise TypeError("Class times must be a list")
 
-        if not all(isinstance(time, str) for time in self.class_times):
-            raise TypeError("Class times must contain only strings")
+        if not all(isinstance(time, ClassTime) for time in self.class_times):
+            raise TypeError("Class times must contain only ClassTime objects")
 
 
 @dataclass(frozen=True)

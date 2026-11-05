@@ -250,7 +250,7 @@ class Collector:
             if not professors:
                 continue  # Skip sections with no professors listed
             
-            section_num = int(course_data[header[Headers.SECTION.value]].get_text(strip=True))
+            section_num = course_data[header[Headers.SECTION.value]].get_text(strip=True)
             mode = ClassMode(course_data[header[Headers.MODE.value]].get_text(strip=True))
             days = self._parse_days(course_data[header[Headers.DAYS.value]])
             start_time, end_time = self._parse_time(course_data[header[Headers.TIME.value]])
@@ -262,6 +262,7 @@ class Collector:
                 end_time=end_time
             )
 
+            section_num = int(section_num.split()[-1].rstrip(')'))
             section = Section(
                 section_num=section_num,
                 class_time=class_time,

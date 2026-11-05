@@ -214,25 +214,18 @@ class Collector:
                     else None
                 )
 
-                if name:
-                    professors.append(
-                        Professor(
-                            name=name, 
-                            email=email
-                        )
-                    )
-
             elif isinstance(child, NavigableString):
                 for value in str(child).split("/"):
                     name = value.strip()
-
-                    if name:
-                        professors.append(
-                            Professor(
-                                name=name, 
-                                email=None
-                            )
-                        )
+                    email = None
+            
+            if not name:
+                continue
+            if name not in self.__professors:
+                prof = Professor(name=name, email=email)
+                self.__professors[name] = prof
+            
+            professors.append(self.__professors.get(name))
 
         return professors
 

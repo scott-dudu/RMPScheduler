@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from itertools import chain
 from models import Request, Response, Semester, Course, Professor
 
 
@@ -92,7 +93,53 @@ def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]
         CoursesNotFoundError: If any of the courses are not found in the SJSU class schedule for the given semester.
         requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
     """
-    pass
+    # Get the URL of the class schedules for the given semester and year.
+    semester_url = _get_semester_url(request.semester, request.year)
+    classes_url = f'{__SJSU_URL}{semester_url}'
+
+    # Courses to fetch professors for
+    courses_to_fetch = request.courses
+    courses_not_found = []
+    professors = {}
+
+    # Fetch the HTML content and raise an exception if the request fails.
+    req = requests.get(classes_url)
+    req.raise_for_status()
+
+    # Parse the HTML content
+    page = BeautifulSoup(req.text, 'html.parser')
+
+    # Find the courses in the HTML content and fetch the professors and times for each course.
+    for course in courses_to_fetch:
+        # Find the course in the HTML content
+        str_to_find = str(course)
+        course_elements = (
+            item for item in page.find_all('tr')
+            if str_to_find in item.get_text(' ', strip=True)
+        )
+
+        # Check if the course was found in the HTML content
+        first_element = next(course_elements, None)
+        if first_element is None:
+            courses_not_found.append(course)
+            continue
+
+        # If a course was not found, do not process valid courses
+        if courses_not_found:
+            continue
+
+        # Put the first element back into the generator to iterate over all elements
+        course_elements = chain([first_element], course_elements)
+
+        # Fetch the professors and times for the course
+        course_professors = _get_professors(course_elements)
+        professors[course] = course_professors
+    
+    # If any courses were not found, raise an exception
+    if courses_not_found:
+        raise CoursesNotFoundError('Courses not found', courses_not_found)
+
+    return professors
 
 
 def _get_professor(professor_url: str) -> Professor:

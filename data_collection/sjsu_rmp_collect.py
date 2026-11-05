@@ -1,5 +1,6 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+from collections.abc import Iterable
 from itertools import chain
 from models import Request, Response, Semester, Course, Professor
 
@@ -76,6 +77,18 @@ def _get_semester_url(semester: Semester, year: int) -> str:
     
     # Return the URL for the given semester and year.
     return href
+
+
+def _get_professors(course_elements: Iterable[Tag]) -> list[Professor]:
+    """
+    Fetches the professors for the given course elements
+    
+    Args:
+        course_elements (Iterable[Tag]): An iterable of course elements from the SJSU class schedule.
+        
+    Returns:
+        list[Professor]: A list of professor objects for the given course elements.
+    """
 
 
 def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]]:

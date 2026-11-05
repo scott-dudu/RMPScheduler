@@ -62,8 +62,8 @@ def test_courses_not_found_error_string():
 
     expected = (
         "Courses not found:\n"
-        "\tCS-151\n"
-        "\tCS-157A"
+        "\tCS 151\n"
+        "\tCS 157A"
     )
 
     assert str(error) == expected
@@ -84,4 +84,4 @@ def test_courses_not_found_error_can_be_raised():
     error = exception_info.value
 
     assert error.courses == courses
-    assert str(error) == "Courses not found:\n\tCS-160"
+    assert str(error) == "Courses not found:\n\tCS 160"

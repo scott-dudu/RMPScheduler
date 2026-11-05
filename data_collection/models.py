@@ -44,7 +44,7 @@ class Course:
             raise ValueError("Course number cannot be empty")
     
     def __str__(self):
-        return f'{self.course_dept}-{self.course_num}'
+        return f'{self.course_dept} {self.course_num}'
 
 
 @dataclass(frozen=True)

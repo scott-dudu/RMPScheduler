@@ -22,7 +22,7 @@ def test_get_semester_url_returns_url(monkeypatch):
     response = FakeResponse(html)
 
     def fake_get(url):
-        assert url == module.__SJSU_CLASS_URL
+        assert url == module.__SJSU_URL + module.__SEM_PATH
         return response
 
     monkeypatch.setattr(module.requests, "get", fake_get)

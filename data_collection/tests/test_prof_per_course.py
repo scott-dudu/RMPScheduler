@@ -1,8 +1,7 @@
 import pytest
 
 import sjsu_rmp_collect as module
-from sjsu_rmp_collect import CoursesNotFoundError, _get_professors_per_course
-from models import Course, Semester, Request
+from models import Course, Semester, Day, ClassMode, Professor, ClassTime, Request
 
 
 class FakeResponse:
@@ -14,33 +13,60 @@ class FakeResponse:
 
 
 HTML = """
-<table>
-    <tbody>
-        <tr>
-            <td>
-                <a>
-                    CS 122 (Section 01)
-                </a>
-            </td>
-            <td>47822</td>
-            <td>In Person</td>
-            <td>Advanced Python Programming</td>
-            <td>GE: 6</td>
-            <td>3.0</td>
-            <td>LEC</td>
-            <td>MW</td>
-            <td>09:00AM-10:15AM</td>
-            <td>
-                <a>
-                    Test Name
-                </a>
-            </td>
-            <td>DMH227</td>
-            <td>08/19/26-12/07/26</td>
-            <td>0</td>
-        </tr>
-    </tbody>
-</table>
+<html>
+    <body>
+        <table>
+            <thead>
+                <tr>
+                    <th class="all" width="10%" data-priority="1">
+                        Section
+                    </th>
+                    <th>Class Number</th>
+                    <th>Mode of Instruction</th>
+                    <th class="all" data-priority="2">
+                        Course Title
+                    </th>
+                    <th>Satisfies</th>
+                    <th>Units</th>
+                    <th>Type</th>
+                    <th data-priority="3">Days</th>
+                    <th data-priority="4">Times</th>
+                    <th>Instructor</th>
+                    <th>Location</th>
+                    <th data-priority="3">Dates</th>
+                    <th data-priority="2">Open Seats</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <td>
+                        <a>
+                            AAS 1 (Section 01)
+                        </a>
+                    </td>
+                    <td>47822</td>
+                    <td>In Person</td>
+                    <td>Introduction to Asian American Studies</td>
+                    <td>GE: 6</td>
+                    <td>3.0</td>
+                    <td>LEC</td>
+                    <td>MW</td>
+                    <td>09:00AM-10:15AM</td>
+                    <td>
+                        <a>
+                            Test Name
+                        </a>
+                    </td>
+                    <td>DMH227</td>
+                    <td>08/19/26-12/07/26</td>
+                    <td>0</td>
+                </tr>
+            </tbody>
+        </table>
+    </body>
+</html>
 """
 
 
@@ -65,17 +91,28 @@ def setup_successful_request(monkeypatch):
         lambda url: FakeResponse(HTML),
     )
 
-
-def test_get_professors_by_course_returns_course_dictionary(monkeypatch):
-    course = Course("CS", "122")
+def test_get_professors_per_course_returns_course_dictionary(monkeypatch):
+    course = Course("AAS", "1")
     request = make_request([course])
 
     setup_successful_request(monkeypatch)
 
     result = module._get_professors_per_course(request)
 
+    time = ClassTime(
+        mode=ClassMode.IN_PERSON,
+        days=[Day.MONDAY, Day.WEDNESDAY],
+        start_time="09:00",
+        end_time="10:15",
+    )
+
     assert result == {
-        course: {"Test Name"},
+        course: [
+            Professor(
+                name="Test Name",
+                class_times=[time],
+            )
+        ],
     }
 
 

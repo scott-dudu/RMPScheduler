@@ -87,6 +87,7 @@ class Request:
             )
 
 
+@dataclass(frozen=True)
 class ClassTime:
     mode: ClassMode
     days: list[Day]
@@ -110,11 +111,12 @@ class ClassTime:
             raise TypeError(f"End time must be a string, got: {type(self.end_time)}")
 
 
+@dataclass
 class Professor:
     name: str
     rating: float=0.0
     tags: dict[str, int]=field(default_factory=dict)
-    class_times: list[ClassTime]
+    class_times: list[ClassTime]=field(default_factory=list)
 
     def __post_init__(self):
         if not isinstance(self.name, str):

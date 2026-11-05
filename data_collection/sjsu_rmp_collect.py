@@ -1,5 +1,5 @@
 import requests
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 from collections.abc import Iterable
 from itertools import chain
 from enum import Enum
@@ -201,7 +201,40 @@ class Collector:
         Returns:
             list[Professor]: A list of Professor objects representing the professors for the class.
         """
-        pass
+        professors = []
+
+        for child in professors_tag.children:
+            if isinstance(child, Tag) and child.name == "a":
+                name = child.get_text(" ", strip=True)
+                href = child.get("href")
+
+                email = (
+                    href.removeprefix("mailto:")
+                    if href
+                    else None
+                )
+
+                if name:
+                    professors.append(
+                        Professor(
+                            name=name, 
+                            email=email
+                        )
+                    )
+
+            elif isinstance(child, NavigableString):
+                for value in str(child).split("/"):
+                    name = value.strip()
+
+                    if name:
+                        professors.append(
+                            Professor(
+                                name=name, 
+                                email=None
+                            )
+                        )
+
+        return professors
 
 
     def _get_sections(self, header: dict[str, int], course_elements: Iterable[Tag]) -> list[Section]:

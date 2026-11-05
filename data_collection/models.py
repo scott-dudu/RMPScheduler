@@ -133,7 +133,7 @@ class Section:
 @dataclass
 class Professor:
     name: str
-    email: str
+    email: str | None=None
     rating: Rating | None=None
 
     def __post_init__(self):

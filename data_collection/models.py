@@ -91,8 +91,8 @@ class Request:
 class ClassTime:
     mode: ClassMode
     days: list[Day]
-    start_time: str='00:00'
-    end_time: str='23:59'
+    start_time: list[str]
+    end_time: list[str]
 
     def __post_init__(self):
         if not isinstance(self.mode, ClassMode):
@@ -104,11 +104,11 @@ class ClassTime:
         if not all(isinstance(day, Day) for day in self.days):
             raise TypeError("All items in days must be instances of Day enum")
 
-        if not isinstance(self.start_time, str):
-            raise TypeError(f"Start time must be a string, got: {type(self.start_time)}")
+        if not isinstance(self.start_time, list):
+            raise TypeError(f"Start time must be a list, got: {type(self.start_time)}")
 
-        if not isinstance(self.end_time, str):
-            raise TypeError(f"End time must be a string, got: {type(self.end_time)}")
+        if not isinstance(self.end_time, list):
+            raise TypeError(f"End time must be a list, got: {type(self.end_time)}")
         
 
 @dataclass

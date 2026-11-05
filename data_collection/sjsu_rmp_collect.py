@@ -92,12 +92,12 @@ def _parse_header(header: Iterable[Tag]) -> dict[str, int]:
     pass
 
 
-def _parse_days(days_str: str) -> list[Day]:
+def _parse_days(days_tag: Tag) -> list[Day]:
     """
     Parses the days string from the SJSU class schedule to get a list of Day enums.
     
     Args:
-        days_str (str): The days string from the SJSU class schedule.
+        days_tag (Tag): The days tag from the SJSU class schedule.
         
     Returns:
         list[Day]: A list of Day enums representing the days of the week for the class.
@@ -105,83 +105,75 @@ def _parse_days(days_str: str) -> list[Day]:
     pass
 
 
-def _parse_time(time_str: str) -> tuple[str, str]:
+def _parse_time(time_tag: Tag) -> tuple[list[str], list[str]]:
     """
     Parses the time string from the SJSU class schedule to get the start and end times.
     
     Args:
-        time_str (str): The time string from the SJSU class schedule.
+        time_tag (Tag): The time tag from the SJSU class schedule.
         
     Returns:
-        tuple[str, str]: A tuple containing the start and end times as strings in HH:MM format.
+        tuple[list[str], list[str]]: A tuple containing lists of the start and end times as strings in HH:MM format.
     """
     pass
 
 
-def _get_professors(header: dict[str, int], course_elements: Iterable[Tag]) -> list[Professor]:
+def _parse_professors(professors_tag: Tag) -> list[Professor]:
     """
-    Fetches the professors for the given course elements
+    Parses the professors string from the SJSU class schedule to get a list of Professor objects.
     
+    Args:
+        professors_tag (Tag): The professors tags from the SJSU class schedule.
+        
+    Returns:
+        list[Professor]: A list of Professor objects representing the professors for the class.
+    """
+    pass
+
+
+def _get_sections(header: dict[str, int], course_elements: Iterable[Tag]) -> list[Section]:
+    """
+    Fetches the sections for the given course elements
+
     Args:
         header (dict[str, int]): A dictionary mapping each relevant column name to its index.
         course_elements (Iterable[Tag]): An iterable of course elements from the SJSU class schedule.
         
     Returns:
-        list[Professor]: A list of professor objects for the given course elements.
+        list[Section]: A list of section objects for the given course elements.
     """
-    professors = []
+    sections = []
     for course in course_elements:
         course_data = course.find_all('td')
-        professor_cell = course_data[header['Instructor']]
-
-        # Get the professor name, mode, day, and time.
-        professor_name = professor_cell.get_text(' ', strip=True)
-
-        # If professor name is empty or TBA, skip the course
-        if not professor_name or professor_name.lower() == 'tba':
-            continue
-
-        mode = course_data[header['Mode']].get_text(' ', strip=True).lower()
-        days = _parse_days(course_data[header['Days']].get_text(' ', strip=True))
-        time = _parse_time(course_data[header['Time']].get_text(' ', strip=True))
-
-        professor_link = professor_cell.find('a')
-        professor_email = (
-            professor_link.get("href")
-            if professor_link is not None
-            else None
-        )
         
-        if professor_email:
-            professor_email = professor_email.removeprefix('mailto:')
-
-        # Create a ClassTime object for the professor's class time.
+        # Get the section number, class time, and professors for the section of the course
+        professors = _parse_professors(course_data[header['Instructor']])
+        if not professors:
+            continue  # Skip sections with no professors listed
+        
+        section_num = int(course_data[header['Section']].get_text(strip=True))
+        mode = ClassMode(course_data[header['Mode']].get_text(strip=True))
+        days = _parse_days(course_data[header['Days']])
+        start_time, end_time = _parse_time(course_data[header['Time']])
+        
         class_time = ClassTime(
-            mode=ClassMode(mode),
+            mode=mode,
             days=days,
-            start_time=time[0],
-            end_time=time[1]
+            start_time=start_time,
+            end_time=end_time
         )
 
-        # Check if the professor is already in the list, and if so, add the class time to their class times.
-        if professor_email is not None:
-            existing_professor = next((prof for prof in professors if prof.email == professor_email), None)
-        else:
-            existing_professor = next((prof for prof in professors if prof.name == professor_name), None)
+        section = Section(
+            section_num=section_num,
+            class_time=class_time,
+            professors=professors
+        )
+        sections.append(section)
 
-        if existing_professor is None:
-            existing_professor = Professor(
-                name=professor_name,
-                email=professor_email
-            )
-            professors.append(existing_professor)
-
-        existing_professor.class_times.append(class_time)
-
-    return professors
+    return sections
 
 
-def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]]:
+def _get_professors_per_course(request: Request) -> dict[Course, list[Section]]:
     """
     Fetches the professors for each course in the given request object.
     
@@ -189,7 +181,7 @@ def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]
         request (Request): The request object containing the courses to fetch professors for.
         
     Returns:
-        dict[Course, list[Professor]]: A dictionary mapping each course to a list of professor objects.
+        dict[Course, list[Section]]: A dictionary mapping each course to a list of section objects.
 
     Raises:
         SemesterNotFoundError: If the semester is not found in the SJSU class schedule.
@@ -203,7 +195,7 @@ def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]
     # Courses to fetch professors for
     courses_to_fetch = request.courses
     courses_not_found = []
-    professors = {}
+    sections = {}
 
     # Fetch the HTML content and raise an exception if the request fails.
     req = requests.get(classes_url)
@@ -237,15 +229,15 @@ def _get_professors_per_course(request: Request) -> dict[Course, list[Professor]
         # Put the first element back into the generator to iterate over all elements
         course_elements = chain([first_element], course_elements)
 
-        # Fetch the professors and times for the course
-        course_professors = _get_professors(header, course_elements)
-        professors[course] = course_professors
+        # Fetch the sections for the course
+        course_sections = _get_sections(header, course_elements)
+        sections[course] = course_sections
     
     # If any courses were not found, raise an exception
     if courses_not_found:
         raise CoursesNotFoundError('Courses not found', courses_not_found)
 
-    return professors
+    return sections
 
 
 def _get_professor(professor_url: str) -> Professor:

@@ -102,7 +102,7 @@ class Collector:
             dict[str, int]: A dictionary mapping each relevant column name to its index.
         """
         header_mapping = {}
-        headers = [header.value for header in Headers]
+        headers = [h.value for h in Headers]
         for index, item in enumerate(header):
             text = item.get_text(strip=True)
             for header_name in headers:
@@ -122,7 +122,9 @@ class Collector:
         Returns:
             list[Day]: A list of Day enums representing the days of the week for the class.
         """
-        pass
+        text = days_tag.get_text(strip=True)
+        text = text.split('<br>') if '<br>' in text else list(text)
+        return [Day(day) for day in text]
 
 
     def _parse_time(self, time_tag: Tag) -> tuple[list[str], list[str]]:

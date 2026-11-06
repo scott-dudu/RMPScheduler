@@ -4,8 +4,7 @@ from collections.abc import Iterable
 from itertools import chain
 from enum import Enum
 from models import *
-
-
+from urllib.parse import quote, urljoin
 
 
 class SemesterNotFoundError(Exception):
@@ -43,6 +42,7 @@ class Collector:
     __SJSU_URL = 'https://www.sjsu.edu'
     __SEM_PATH = '/classes/schedules/index.php'
     __SJSU_RMP_URL = 'https://www.ratemyprofessors.com/search/professors/881?q='
+    __PROF_CARD_CLASS = 'TeacherCard__StyledTeacherCard-syjs0d-0 eerjaA'
     
     def __init__(self):
         self.__professors = {}
@@ -349,16 +349,57 @@ class Collector:
             raise CoursesNotFoundError('Courses not found', courses_not_found)
 
         return sections
-
-
-    def _get_professor_statistics(self, professor_url: str) -> None:
+    
+    
+    def _parse_professor_stats(prof: Professor, url: str) -> None:
         """
-        Fetches professor data from RateMyProfessors for the given professor URL.
-        
+        Searches through the page of the professor and gets a Rating object to attach to the Professor object.
+
         Args:
-            professor_url (str): The URL of the professor's RateMyProfessors page.
+            prof (Professor): the Professor object that the Rating object will be added to.
+            url (str): the url of the professor's Rate My Professor page.
         """
-        
+        pass
+
+
+    def _get_professor_statistics(self, prof_name: str) -> None:
+        """
+        Fetches statistics for a professor from RateMyProfessors.
+
+        Args:
+            prof_name (str): The professor's name.
+
+        Raises:
+            requests.HTTPError: If the RateMyProfessors request fails.
+        """
+        professor = self.__professors.get(prof_name)
+
+        if professor is None:
+            return
+
+        professor_url = f'{self.__SJSU_RMP_URL}{quote(prof_name)}'
+
+        req = requests.get(professor_url)
+        req.raise_for_status()
+
+        page = BeautifulSoup(req.text, 'html.parser')
+
+        for anchor in page.find_all(
+            'a',
+            class_=self.__PROF_CARD_CLASS,
+        ):
+            anchor_text = anchor.get_text(' ', strip=True)
+            if prof_name.lower() not in anchor_text.lower():
+                continue
+
+            href = anchor.get('href')
+            if not href:
+                continue
+
+            full_url = urljoin(professor_url, href)
+
+            self._parse_professor_stats(professor, full_url)
+            return
 
 
     def get_professor_data(self, request: Request) -> Response:
@@ -374,8 +415,7 @@ class Collector:
         result = self._get_professors_per_course(request)
         
         for prof in self.__professors:
-            url = self.__SJSU_RMP_URL + prof
-            self._get_professor_statistics(url)
+            self._get_professor_statistics(prof)
             
         return Response(
             request=request,

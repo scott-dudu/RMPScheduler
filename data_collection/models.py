@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -140,10 +141,10 @@ class Professor:
         if not isinstance(self.name, str):
             raise TypeError("Name must be a string")
 
-        if not isinstance(self.email, str):
+        if self.email is not None and not isinstance(self.email, str):
             raise TypeError("Email must be a string")
 
-        if not isinstance(self.rating, Rating):
+        if self.rating is not None and not isinstance(self.rating, Rating):
             raise TypeError("Rating must be a Rating object")
 
 

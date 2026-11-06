@@ -6,9 +6,6 @@ from enum import Enum
 from models import *
 
 
-__SJSU_URL = 'https://www.sjsu.edu'
-__SEM_PATH = '/classes/schedules/index.php'
-__SJSU_RMP_URL = 'https://www.ratemyprofessors.com/search/professors/881?q='
 
 
 class SemesterNotFoundError(Exception):
@@ -43,6 +40,10 @@ class Headers(Enum):
     INSTRUCTOR = 'Instructor'
 
 class Collector:
+    __SJSU_URL = 'https://www.sjsu.edu'
+    __SEM_PATH = '/classes/schedules/index.php'
+    __SJSU_RMP_URL = 'https://www.ratemyprofessors.com/search/professors/881?q='
+    
     def __init__(self):
         self.__professors = {}
     
@@ -62,7 +63,7 @@ class Collector:
             requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
         """
         # Fetch the HTML content and raise an exception if the request fails.
-        req = requests.get(f'{__SJSU_URL}{__SEM_PATH}')
+        req = requests.get(f'{self.__SJSU_URL}{self.__SEM_PATH}')
         req.raise_for_status()
         
         # Parse the HTML content
@@ -156,7 +157,7 @@ class Collector:
         
         # Normalize hours and minutes
         hours = int(hours)
-        minutes = int(minutes.removeprefix('AM').removeprefix('PM'))
+        minutes = int(minutes.removesuffix('AM').removesuffix('PM'))
         
         # Convert to 24-hour format if necessary
         if 'PM' in time_str and hours != 12:
@@ -202,7 +203,7 @@ class Collector:
             list[Professor]: A list of Professor objects representing the professors for the class.
         """
         professors = []
-
+        
         for child in professors_tag.children:
             if isinstance(child, Tag) and child.name == "a":
                 name = child.get_text(" ", strip=True)
@@ -214,18 +215,28 @@ class Collector:
                     else None
                 )
 
+                professor_values = [(name, email)]
+
             elif isinstance(child, NavigableString):
-                for value in str(child).split("/"):
-                    name = value.strip()
-                    email = None
-            
-            if not name:
+                professor_values = [
+                    (value.strip(), None)
+                    for value in str(child).split("/")
+                ]
+
+            else:
                 continue
-            if name not in self.__professors:
-                prof = Professor(name=name, email=email)
-                self.__professors[name] = prof
-            
-            professors.append(self.__professors.get(name))
+
+            for name, email in professor_values:
+                if not name or name.lower() == "tba":
+                    continue
+
+                if name not in self.__professors:
+                    self.__professors[name] = Professor(
+                        name=name,
+                        email=email,
+                    )
+
+                professors.append(self.__professors[name])
 
         return professors
 
@@ -251,7 +262,7 @@ class Collector:
                 continue  # Skip sections with no professors listed
             
             section_num = course_data[header[Headers.SECTION.value]].get_text(strip=True)
-            mode = ClassMode(course_data[header[Headers.MODE.value]].get_text(strip=True))
+            mode = ClassMode(course_data[header[Headers.MODE.value]].get_text(strip=True).lower())
             days = self._parse_days(course_data[header[Headers.DAYS.value]])
             start_time, end_time = self._parse_time(course_data[header[Headers.TIME.value]])
             
@@ -290,7 +301,7 @@ class Collector:
         """
         # Get the URL of the class schedules for the given semester and year.
         semester_url = self._get_semester_url(request.semester, request.year)
-        classes_url = f'{__SJSU_URL}{semester_url}'
+        classes_url = f'{self.__SJSU_URL}{semester_url}'
 
         # Courses to fetch professors for
         courses_to_fetch = request.courses

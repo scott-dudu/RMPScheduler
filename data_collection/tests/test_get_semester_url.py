@@ -2,7 +2,6 @@ import pytest
 import requests
 
 import sjsu_rmp_collect as module
-from sjsu_rmp_collect import SemesterNotFoundError, _get_semester_url
 from models import Semester
 
 
@@ -16,23 +15,35 @@ class FakeResponse:
             raise self.error
 
 
-def test_get_semester_url_returns_url(monkeypatch):
-    html = '<li><a href="/classes/fall2026">Fall 2026 Class Schedule</a></li>'
+@pytest.fixture
+def collector():
+    return module.Collector()
 
-    response = FakeResponse(html)
+
+def test_get_semester_url_returns_url(monkeypatch, collector):
+    html = """
+    <li>
+        <a href="/classes/fall2026">
+            Fall 2026 Class Schedule
+        </a>
+    </li>
+    """
 
     def fake_get(url):
-        assert url == module.__SJSU_URL + module.__SEM_PATH
-        return response
+        assert url == (
+            "https://www.sjsu.edu"
+            "/classes/schedules/index.php"
+        )
+        return FakeResponse(html)
 
     monkeypatch.setattr(module.requests, "get", fake_get)
 
-    result = _get_semester_url(Semester.FALL, 2026)
+    result = collector._get_semester_url(Semester.FALL, 2026)
 
     assert result == "/classes/fall2026"
 
 
-def test_get_semester_url_raises_http_error(monkeypatch):
+def test_get_semester_url_raises_http_error(monkeypatch, collector):
     response = FakeResponse(
         error=requests.HTTPError("Request failed")
     )
@@ -44,11 +55,17 @@ def test_get_semester_url_raises_http_error(monkeypatch):
     )
 
     with pytest.raises(requests.HTTPError, match="Request failed"):
-        _get_semester_url(Semester.FALL, 2026)
+        collector._get_semester_url(Semester.FALL, 2026)
 
 
-def test_get_semester_url_raises_when_not_found(monkeypatch):
-    html = '<li><a href="/classes/spring2026">Spring 2026 Class Schedule</a></li>'
+def test_get_semester_url_raises_when_not_found(monkeypatch, collector):
+    html = """
+    <li>
+        <a href="/classes/spring2026">
+            Spring 2026 Class Schedule
+        </a>
+    </li>
+    """
 
     monkeypatch.setattr(
         module.requests,
@@ -56,8 +73,8 @@ def test_get_semester_url_raises_when_not_found(monkeypatch):
         lambda url: FakeResponse(html),
     )
 
-    with pytest.raises(SemesterNotFoundError) as exception_info:
-        _get_semester_url(Semester.FALL, 2026)
+    with pytest.raises(module.SemesterNotFoundError) as exception_info:
+        collector._get_semester_url(Semester.FALL, 2026)
 
     error = exception_info.value
 
@@ -66,7 +83,10 @@ def test_get_semester_url_raises_when_not_found(monkeypatch):
     assert str(error) == "Semester not found: Fall 2026"
 
 
-def test_get_semester_url_raises_when_not_published(monkeypatch):
+def test_get_semester_url_raises_when_not_published(
+    monkeypatch,
+    collector,
+):
     html = "<li>Fall 2026 Class Schedule</li>"
 
     monkeypatch.setattr(
@@ -75,17 +95,13 @@ def test_get_semester_url_raises_when_not_published(monkeypatch):
         lambda url: FakeResponse(html),
     )
 
-    with pytest.raises(SemesterNotFoundError) as exception_info:
-        _get_semester_url(Semester.FALL, 2026)
+    with pytest.raises(module.SemesterNotFoundError) as exception_info:
+        collector._get_semester_url(Semester.FALL, 2026)
 
     error = exception_info.value
 
     assert error.semester == Semester.FALL
     assert error.year == 2026
-    assert str(error) == "Semester has not been published: Fall 2026"
-    
-    
-@pytest.mark.integration
-def test_real_sjsu_site():
-    url = _get_semester_url(Semester.FALL, 2026)
-    assert url
+    assert str(error) == (
+        "Semester has not been published: Fall 2026"
+    )

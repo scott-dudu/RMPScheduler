@@ -351,17 +351,14 @@ class Collector:
         return sections
 
 
-    def _get_professor(self, professor_url: str) -> Professor:
+    def _get_professor_statistics(self, professor_url: str) -> None:
         """
         Fetches professor data from RateMyProfessors for the given professor URL.
         
         Args:
             professor_url (str): The URL of the professor's RateMyProfessors page.
-            
-        Returns:
-            Professor: The professor object containing the fetched data.
         """
-        pass
+        
 
 
     def get_professor_data(self, request: Request) -> Response:
@@ -374,4 +371,13 @@ class Collector:
         Returns:
             Response: The response object containing the fetched professor data.
         """
-        pass
+        result = self._get_professors_per_course(request)
+        
+        for prof in self.__professors:
+            url = self.__SJSU_RMP_URL + prof
+            self._get_professor_statistics(url)
+            
+        return Response(
+            request=request,
+            results=result
+        )

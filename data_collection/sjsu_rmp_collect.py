@@ -123,6 +123,9 @@ class Collector:
             list[Day]: A list of Day enums representing the days of the week for the class.
         """
         text = days_tag.get_text(' ', strip=True)
+        if text.upper() == 'TBA':
+            return [Day.TBA]
+        
         text = text.split() if ' ' in text else list(text)
         
         day_mapping = {

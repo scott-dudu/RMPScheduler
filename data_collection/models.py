@@ -18,12 +18,14 @@ class Day(Enum):
     FRIDAY = "Friday"
     SATURDAY = "Saturday"
     SUNDAY = "Sunday"
+    TBA = 'TBA'
 
 
 class ClassMode(Enum):
     IN_PERSON = "in person"
     ONLINE = "online"
     HYBRID = "hybrid"
+    TBA = 'tba'
 
 
 @dataclass(frozen=True)

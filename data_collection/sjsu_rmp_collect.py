@@ -125,7 +125,7 @@ class Collector:
         text = days_tag.get_text(' ', strip=True)
         if text.upper() == 'TBA':
             return [Day.TBA]
-        
+
         text = text.split() if ' ' in text else list(text)
         
         day_mapping = {
@@ -287,6 +287,23 @@ class Collector:
         return sections
 
 
+    def _find_classes(url: str, courses: list[Course]) -> dict[Course, list[Tag]]:
+        """
+        Uses Playwright to interact with the website and find all classes related to each course.
+
+        Args:
+            url (str): The URL that Playwright will use to search for classes.
+            courses (list[Course]): The list of courses Playwright should search for.
+
+        Returns:
+            dict[Course, list[Tag]]: A dictionary mapping the requested course to all tags that contained the course name.
+
+        Raises:
+            CoursesNotFoundError: If any of the courses are not found in the SJSU class schedule for the given semester.
+        """
+        pass
+
+
     def _get_professors_per_course(self, request: Request) -> dict[Course, list[Section]]:
         """
         Fetches the professors for each course in the given request object.
@@ -305,51 +322,51 @@ class Collector:
         # Get the URL of the class schedules for the given semester and year.
         semester_url = self._get_semester_url(request.semester, request.year)
         classes_url = f'{self.__SJSU_URL}{semester_url}'
+        
+        # Get the header mapping.
+        header = self._parse_header(classes_url)
 
-        # Courses to fetch professors for
-        courses_to_fetch = request.courses
-        courses_not_found = []
+        # Dictionary of course to list of sections
         sections = {}
 
-        # Fetch the HTML content and raise an exception if the request fails.
-        req = requests.get(classes_url)
-        req.raise_for_status()
+        # Search for specific classes using playwright
+        courses_to_fetch = self._find_classes(classes_url, request.courses)
 
-        # Parse the HTML content
-        page = BeautifulSoup(req.text, 'html.parser')
-
-        # Get the header mapping.
-        header = self._parse_header(page.find_all('th'))
-
-        # Find the courses in the HTML content and fetch the professors and times for each course.
+        # Comb through the classes that were found
         for course in courses_to_fetch:
-            # Find the course in the HTML content
-            str_to_find = str(course)
-            course_elements = (
-                item for item in page.find_all('tr')
-                if str_to_find in item.get_text(' ', strip=True)
-            )
-
-            # Check if the course was found in the HTML content
-            first_element = next(course_elements, None)
-            if first_element is None:
-                courses_not_found.append(course)
-                continue
-
-            # If a course was not found, do not process valid courses
-            if courses_not_found:
-                continue
-
-            # Put the first element back into the generator to iterate over all elements
-            course_elements = chain([first_element], course_elements)
-
-            # Fetch the sections for the course
+            course_elements = courses_to_fetch.get(course)
             course_sections = self._get_sections(header, course_elements)
             sections[course] = course_sections
+
+        # # Find the courses in the HTML content and fetch the professors and times for each course.
+        # for course in courses_to_fetch:
+        #     # Find the course in the HTML content
+        #     str_to_find = str(course)
+        #     course_elements = (
+        #         item for item in page.find_all('tr')
+        #         if str_to_find in item.get_text(' ', strip=True)
+        #     )
+
+        #     # Check if the course was found in the HTML content
+        #     first_element = next(course_elements, None)
+        #     if first_element is None:
+        #         courses_not_found.append(course)
+        #         continue
+
+        #     # If a course was not found, do not process valid courses
+        #     if courses_not_found:
+        #         continue
+
+        #     # Put the first element back into the generator to iterate over all elements
+        #     course_elements = chain([first_element], course_elements)
+
+        #     # Fetch the sections for the course
+        #     course_sections = self._get_sections(header, course_elements)
+        #     sections[course] = course_sections
         
-        # If any courses were not found, raise an exception
-        if courses_not_found:
-            raise CoursesNotFoundError('Courses not found', courses_not_found)
+        # # If any courses were not found, raise an exception
+        # if courses_not_found:
+        #     raise CoursesNotFoundError('Courses not found', courses_not_found)
 
         return sections
     

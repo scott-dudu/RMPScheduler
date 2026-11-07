@@ -150,22 +150,22 @@ class Professor:
 
 @dataclass
 class Rating:
-    quality: float
-    difficulty: float
-    tags: list[str]=field(default_factory=list)
+    quality: float | str='N/A'
+    difficulty: float | str='N/A'
+    tags: set[str]=field(default_factory=set)
     
     def __post_init__(self):
-        if not isinstance(self.quality, float):
-            raise TypeError("Quality must be a float")
+        if not (isinstance(self.quality, float) or self.quality == "N/A"):
+            raise TypeError("Quality must be a float or 'N/A'")
 
-        if not isinstance(self.difficulty, float):
-            raise TypeError("Difficulty must be a float")
+        if not (isinstance(self.difficulty, float) or self.difficulty == "N/A"):
+            raise TypeError("Difficulty must be a float or 'N/A'")
 
-        if not isinstance(self.tags, list):
-            raise TypeError("Tags must be a list")
+        if not isinstance(self.tags, set):
+            raise TypeError("Tags must be a set")
 
         if not all(isinstance(tag, str) for tag in self.tags):
-            raise TypeError("All items in tags must be strings")
+            raise TypeError("All tags must be strings")
 
 
 @dataclass(frozen=True)

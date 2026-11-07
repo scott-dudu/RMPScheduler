@@ -351,15 +351,50 @@ class Collector:
         return sections
     
     
-    def _parse_professor_stats(prof: Professor, url: str) -> None:
+    def _parse_professor_stats(self, url: str) -> Rating:
         """
         Searches through the page of the professor and gets a Rating object to attach to the Professor object.
 
         Args:
-            prof (Professor): the Professor object that the Rating object will be added to.
             url (str): the url of the professor's Rate My Professor page.
+
+        Returns:
+            Rating: a rating object containing quality, difficulty, and tags.
+        
+        Raises:
+            requests.HTTPError: If the RateMyProfessors request fails.
         """
-        pass
+        QUAL_DIV_CLASS = 'RatingValue__Numerator-qw8sqy-2 duhvlP'
+        DIFF_DIV_CLASS = 'FeedbackItem__FeedbackNumber-uof32n-1 ecFgca'
+        TAG_CLASS = 'Tag-bs9vf4-0 bmtbjB'
+
+        req = requests.get(url)
+        req.raise_for_status()
+
+        page = BeautifulSoup(req.text, 'html.parser')
+
+        # Get the overall rating
+        quality = page.find('div', class_=QUAL_DIV_CLASS).get_text(strip=True).upper()
+        if quality != 'N/A':
+            quality = float(quality)
+
+        # Get the difficulty rating
+        element = page.find('div', class_=DIFF_DIV_CLASS)
+        difficulty = element.get_text(strip=True) if element is not None else 'N/A'
+        if difficulty != 'N/A':
+            difficulty = float(difficulty)
+
+        # Collect all tags with most recent reviews
+        tags = {
+            tag.get_text(' ', strip=True).upper()
+            for tag in page.find_all('span', class_=TAG_CLASS)
+        }
+
+        return Rating(
+            quality=quality,
+            difficulty=difficulty,
+            tags=tags
+        )
 
 
     def _get_professor_statistics(self, prof_name: str) -> None:
@@ -398,7 +433,7 @@ class Collector:
 
             full_url = urljoin(professor_url, href)
 
-            self._parse_professor_stats(professor, full_url)
+            professor.rating = self._parse_professor_stats(full_url)
             return
 
 

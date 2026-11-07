@@ -152,8 +152,6 @@ class Professor:
 class Rating:
     quality: float
     difficulty: float
-    top_reviews: list[str]=field(default_factory=list)
-    least_reviews: list[str]=field(default_factory=list)
     tags: list[str]=field(default_factory=list)
     
     def __post_init__(self):
@@ -163,23 +161,12 @@ class Rating:
         if not isinstance(self.difficulty, float):
             raise TypeError("Difficulty must be a float")
 
-        if not isinstance(self.top_reviews, list):
-            raise TypeError("Top reviews must be a list")
-
-        if not all(isinstance(review, str) for review in self.top_reviews):
-            raise TypeError("All items in top reviews must be strings")
-
-        if not isinstance(self.least_reviews, list):
-            raise TypeError("Least reviews must be a list")
-
-        if not all(isinstance(review, str) for review in self.least_reviews):
-            raise TypeError("All items in least reviews must be strings")
-
         if not isinstance(self.tags, list):
             raise TypeError("Tags must be a list")
 
         if not all(isinstance(tag, str) for tag in self.tags):
             raise TypeError("All items in tags must be strings")
+
 
 @dataclass(frozen=True)
 class Response:

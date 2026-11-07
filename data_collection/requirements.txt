@@ -4,3 +4,7 @@ pytest==9.0.2
 # For web scraping
 requests==2.34.0
 beautifulsoup4==4.12.2
+playwright==1.64.1
+
+# Install playwright dependencies after packages:
+# playwright install --with-deps

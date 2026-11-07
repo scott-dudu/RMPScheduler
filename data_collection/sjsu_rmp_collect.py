@@ -5,6 +5,7 @@ from itertools import chain
 from enum import Enum
 from models import *
 from urllib.parse import quote, urljoin
+from playwright.sync_api import sync_playwright
 
 
 class SemesterNotFoundError(Exception):
@@ -301,7 +302,50 @@ class Collector:
         Raises:
             CoursesNotFoundError: If any of the courses are not found in the SJSU class schedule for the given semester.
         """
-        pass
+        # To keep track of courses
+        courses_not_found = []
+        courses_found = {}
+
+        # Start playwright
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            # Go to the url
+            page.goto(url, wait_until='domcontentloaded')
+
+            # Load the classes
+            load_button = page.get_by_role(
+                'button',
+                name='Load Class Schedule'
+            )
+            load_button.click()
+
+            # Get the search bar
+            search_bar = page.get_by_role('searchbox')
+
+            # Search each class
+            for course in courses:
+                # Search for specific course
+                course_name = str(course)
+                search_bar.fill(course_name)
+                search_bar.press('Enter')
+                page.wait_for_load_state('networkidle')
+
+                # Get the next button
+                next_button = page.locator('#classSchedule_next')
+
+                # Go through all pages and save any rows that fit the course name
+                tags = []
+                while True:
+                    rows = page.locator('#classSchedule tbody tr:visible')
+
+
+                    # Break if no more pages left
+                    classes = next_button.get_attribute("class") or ""
+                    if "disabled" in classes:
+                        break
+
 
 
     def _get_professors_per_course(self, request: Request) -> dict[Course, list[Section]]:

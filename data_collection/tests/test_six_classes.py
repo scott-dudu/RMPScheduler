@@ -1,6 +1,6 @@
 import pytest
 
-from models import Course, Request, Semester
+from models import Course, Request, Semester, TimeBlock, Day
 from sjsu_rmp_collect import Collector
 
 
@@ -21,6 +21,7 @@ def test_spring_2027_six_courses_with_professor_data():
         semester=Semester.SPRING,
         year=2027,
         courses=courses,
+        timeblocks=[TimeBlock(Day.MONDAY, '13:30', '14:00')]
     )
 
     response = collector.get_professor_data(request)

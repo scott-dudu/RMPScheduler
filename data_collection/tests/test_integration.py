@@ -12,6 +12,7 @@ def make_request(course):
         semester=Semester.SPRING,
         year=2027,
         courses=[course],
+        timeblocks=[]
     )
 
 

@@ -26,10 +26,15 @@ def test_get_professor_statistics_updates_professor_rating(collector):
             4.5
         </div>
 
-        <div class="FeedbackItem__FeedbackNumber-uof32n-1 ecFgca">
-            2.8
+        <div>
+            <div class="FeedbackItem__FeedbackNumber-uof32n-1 ecFgca">
+                2.8
+            </div>
+            <div class="FeedbackItem__FeedbackDescription-uof32n-2 QOhZP">
+                Level of Difficulty
+            </div>
         </div>
-
+        
         <span class="Tag-bs9vf4-0 bmtbjB">
             Tough grader
         </span>

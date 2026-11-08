@@ -68,6 +68,7 @@ def make_request(courses):
         semester=Semester.FALL,
         year=2026,
         courses=courses,
+        timeblocks=[]
     )
 
 

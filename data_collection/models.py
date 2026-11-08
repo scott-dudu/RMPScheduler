@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import re
 
 class Semester(Enum):
     FALL = "Fall"
@@ -51,10 +52,38 @@ class Course:
 
 
 @dataclass(frozen=True)
+class TimeBlock:
+    start_time: str
+    end_time: str
+
+    def __post_init__(self):
+        if not isinstance(self.start_time, str):
+            raise TypeError(f"Start time must be a string, got: {type(self.start_time)}")
+
+        if not isinstance(self.end_time, str):
+            raise TypeError(f"End time must be a string, got {type(self.end_time)}")
+
+        time_pattern = r"(?:[01]\d|2[0-3]):[0-5]\d"
+
+        if not re.fullmatch(time_pattern, self.start_time):
+            raise ValueError(
+                f"Invalid start time: {self.start_time}. "
+                "Expected HH:MM in 24-hour format."
+            )
+
+        if not re.fullmatch(time_pattern, self.end_time):
+            raise ValueError(
+                f"Invalid end time: {self.end_time}. "
+                "Expected HH:MM in 24-hour format."
+            )
+
+
+@dataclass(frozen=True)
 class Request:
     semester: Semester | str
     year: int
     courses: list[Course]
+    timeblocks: list[TimeBlock]
 
     def __post_init__(self):
         # Validate year
@@ -88,6 +117,12 @@ class Request:
                 "semester",
                 Semester(self.semester.capitalize())
             )
+
+        if not isinstance(self.timeblocks, list):
+            raise TypeError(f"Time blocks must be a list, got {type(self.timeblocks)}")
+
+        if not all(isinstance(time, TimeBlock) for time in self.timeblocks):
+            raise TypeError("All items in timeblocks must be instances of TimeBlock")
 
 
 @dataclass(frozen=True)

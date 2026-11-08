@@ -53,10 +53,17 @@ class Course:
 
 @dataclass(frozen=True)
 class TimeBlock:
+    day: Day
     start_time: str
     end_time: str
 
     def __post_init__(self):
+        if not isinstance(self.day, Day):
+            raise TypeError(f"Day must be of type Day, got: {type(self.day)}")
+
+        if self.day == Day.TBA:
+            raise ValueError("Time block cannot be for a TBA day")
+        
         if not isinstance(self.start_time, str):
             raise TypeError(f"Start time must be a string, got: {type(self.start_time)}")
 

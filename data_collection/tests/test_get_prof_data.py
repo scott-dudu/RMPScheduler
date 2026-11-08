@@ -1,307 +1,122 @@
-import requests
 import pytest
+from bs4 import BeautifulSoup
 
-import sjsu_rmp_collect as module
-from models import Course, Professor, Rating, Request, Semester
-
-
-class FakeResponse:
-    def __init__(self, text="", error=None):
-        self.text = text
-        self.error = error
-
-    def raise_for_status(self):
-        if self.error:
-            raise self.error
+from models import Professor
+from sjsu_rmp_collect import Collector
 
 
 @pytest.fixture
 def collector():
-    return module.Collector()
+    return Collector()
 
 
-def test_parse_professor_stats_returns_rating(
-    monkeypatch,
-    collector,
-):
-    html = """
-    <html>
-        <body>
-            <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
-                4.5
-            </div>
-
-            <div class="FeedbackItem__FeedbackNumber-uof32n-1 ecFgca">
-                2.8
-            </div>
-
-            <span class="Tag-bs9vf4-0 bmtbjB">
-                Tough grader
-            </span>
-
-            <span class="Tag-bs9vf4-0 bmtbjB">
-                EXTRA CREDIT
-            </span>
-        </body>
-    </html>
-    """
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        lambda url: FakeResponse(html),
-    )
-
-    result = collector._parse_professor_stats(
-        "https://example.com/professor/123"
-    )
-
-    assert result == Rating(
-        quality=4.5,
-        difficulty=2.8,
-        tags={"TOUGH GRADER", "EXTRA CREDIT"},
-    )
+def make_tag(html: str):
+    return BeautifulSoup(html, "html.parser").find("main")
 
 
-def test_parse_professor_stats_handles_missing_difficulty(
-    monkeypatch,
-    collector,
-):
-    html = """
-    <html>
-        <body>
-            <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
-                4.0
-            </div>
-        </body>
-    </html>
-    """
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        lambda url: FakeResponse(html),
-    )
-
-    result = collector._parse_professor_stats(
-        "https://example.com/professor/123"
-    )
-
-    assert result.quality == 4.0
-    assert result.difficulty == "N/A"
-    assert result.tags == set()
-
-
-def test_parse_professor_stats_handles_na_quality(
-    monkeypatch,
-    collector,
-):
-    html = """
-    <html>
-        <body>
-            <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
-                N/A
-            </div>
-
-            <div class="FeedbackItem__FeedbackNumber-uof32n-1 ecFgca">
-                N/A
-            </div>
-        </body>
-    </html>
-    """
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        lambda url: FakeResponse(html),
-    )
-
-    result = collector._parse_professor_stats(
-        "https://example.com/professor/123"
-    )
-
-    assert result.quality == "N/A"
-    assert result.difficulty == "N/A"
-    assert result.tags == set()
-
-
-def test_parse_professor_stats_propagates_http_error(
-    monkeypatch,
-    collector,
-):
-    response = FakeResponse(
-        error=requests.HTTPError("Request failed")
-    )
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        lambda url: response,
-    )
-
-    with pytest.raises(requests.HTTPError, match="Request failed"):
-        collector._parse_professor_stats(
-            "https://example.com/professor/123"
-        )
-
-
-def test_get_professor_statistics_updates_professor_rating(
-    monkeypatch,
-    collector,
-):
+def test_get_professor_statistics_updates_professor_rating(collector):
     professor = Professor(
         name="John Smith",
         email="john@example.com",
     )
 
-    collector._Collector__professors["John Smith"] = professor
+    html = """
+    <main>
+        <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
+            4.5
+        </div>
 
-    search_html = """
-    <a
-        class="TeacherCard__StyledTeacherCard-syjs0d-0 eerjaA"
-        href="/professor/12345"
-    >
-        John Smith
-    </a>
+        <div class="FeedbackItem__FeedbackNumber-uof32n-1 ecFgca">
+            2.8
+        </div>
+
+        <span class="Tag-bs9vf4-0 bmtbjB">
+            Tough grader
+        </span>
+
+        <span class="Tag-bs9vf4-0 bmtbjB">
+            Extra credit
+        </span>
+    </main>
     """
 
-    rating = Rating(
-        quality=4.5,
-        difficulty=2.5,
-        tags={"HELPFUL"},
+    collector._get_professor_statistics(
+        professor,
+        make_tag(html),
     )
 
-    requested_urls = []
-    parsed_urls = []
-
-    def fake_get(url):
-        requested_urls.append(url)
-        return FakeResponse(search_html)
-
-    def fake_parse(url):
-        parsed_urls.append(url)
-        return rating
-
-    monkeypatch.setattr(module.requests, "get", fake_get)
-    monkeypatch.setattr(
-        collector,
-        "_parse_professor_stats",
-        fake_parse,
-    )
-
-    collector._get_professor_statistics("John Smith")
-
-    expected_search_url = (
-        f"{collector._Collector__SJSU_RMP_URL}"
-        "John%20Smith"
-    )
-
-    assert requested_urls == [expected_search_url]
-    assert parsed_urls == [
-        "https://www.ratemyprofessors.com/professor/12345"
-    ]
-    assert professor.rating == rating
-
-
-def test_get_professor_statistics_does_nothing_for_unknown_professor(
-    monkeypatch,
-    collector,
-):
-    def fail_if_called(url):
-        pytest.fail("requests.get should not be called")
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        fail_if_called,
-    )
-
-    collector._get_professor_statistics("Unknown Professor")
-
-
-def test_get_professor_statistics_does_nothing_without_matching_anchor(
-    monkeypatch,
-    collector,
-):
-    professor = Professor(name="John Smith")
-    collector._Collector__professors["John Smith"] = professor
-
-    search_html = """
-    <a
-        class="TeacherCard__StyledTeacherCard-syjs0d-0 eerjaA"
-        href="/professor/12345"
-    >
-        Jane Doe
-    </a>
-    """
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        lambda url: FakeResponse(search_html),
-    )
-
-    collector._get_professor_statistics("John Smith")
-
-    assert professor.rating is None
-
-
-def test_get_professor_statistics_propagates_http_error(
-    monkeypatch,
-    collector,
-):
-    professor = Professor(name="John Smith")
-    collector._Collector__professors["John Smith"] = professor
-
-    response = FakeResponse(
-        error=requests.HTTPError("Search failed")
-    )
-
-    monkeypatch.setattr(
-        module.requests,
-        "get",
-        lambda url: response,
-    )
-
-    with pytest.raises(requests.HTTPError, match="Search failed"):
-        collector._get_professor_statistics("John Smith")
-
-
-def test_get_professor_data_returns_response(
-    monkeypatch,
-    collector,
-):
-    course = Course("CS", "151")
-
-    request = Request(
-        semester=Semester.FALL,
-        year=2026,
-        courses=[course],
-    )
-
-    professor = Professor(name="John Smith")
-    collector._Collector__professors["John Smith"] = professor
-
-    results = {
-        course: [],
+    assert professor.rating is not None
+    assert professor.rating.quality == 4.5
+    assert professor.rating.difficulty == 2.8
+    assert professor.rating.tags == {
+        "TOUGH GRADER",
+        "EXTRA CREDIT",
     }
 
-    statistics_calls = []
 
-    monkeypatch.setattr(
-        collector,
-        "_get_professors_per_course",
-        lambda given_request: results,
+def test_get_professor_statistics_handles_missing_difficulty(collector):
+    professor = Professor(name="John Smith")
+
+    html = """
+    <main>
+        <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
+            4.0
+        </div>
+    </main>
+    """
+
+    collector._get_professor_statistics(
+        professor,
+        make_tag(html),
     )
 
-    monkeypatch.setattr(
-        collector,
-        "_get_professor_statistics",
-        lambda name: statistics_calls.append(name),
+    assert professor.rating.quality == 4.0
+    assert professor.rating.difficulty == "N/A"
+    assert professor.rating.tags == set()
+
+
+def test_get_professor_statistics_handles_na_values(collector):
+    professor = Professor(name="John Smith")
+
+    html = """
+    <main>
+        <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
+            N/A
+        </div>
+
+        <div class="FeedbackItem__FeedbackNumber-uof32n-1 ecFgca">
+            N/A
+        </div>
+    </main>
+    """
+
+    collector._get_professor_statistics(
+        professor,
+        make_tag(html),
     )
 
-    response = collector.get_professor_data(request)
+    assert professor.rating.quality == "N/A"
+    assert professor.rating.difficulty == "N/A"
+    assert professor.rating.tags == set()
 
-    assert response.request == request
-    assert response.results == results
-    assert statistics_calls == ["John Smith"]
+
+def test_get_professor_statistics_collects_duplicate_tags_once(collector):
+    professor = Professor(name="John Smith")
+
+    html = """
+    <main>
+        <div class="RatingValue__Numerator-qw8sqy-2 duhvlP">
+            4.2
+        </div>
+
+        <span class="Tag-bs9vf4-0 bmtbjB">Helpful</span>
+        <span class="Tag-bs9vf4-0 bmtbjB">Helpful</span>
+    </main>
+    """
+
+    collector._get_professor_statistics(
+        professor,
+        make_tag(html),
+    )
+
+    assert professor.rating.tags == {"HELPFUL"}

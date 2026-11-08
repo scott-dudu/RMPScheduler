@@ -432,94 +432,43 @@ class Collector:
             sections[course] = course_sections
 
         return sections
-    
-    
-    def _parse_professor_stats(self, url: str) -> Rating:
+
+
+    def _get_professor_statistics(self, prof_obj: Professor, html: Tag) -> None:
         """
-        Searches through the page of the professor and gets a Rating object to attach to the Professor object.
+        Fetches statistics for a professor from RateMyProfessors.
 
         Args:
-            url (str): the url of the professor's Rate My Professor page.
-
-        Returns:
-            Rating: a rating object containing quality, difficulty, and tags.
-        
-        Raises:
-            requests.HTTPError: If the RateMyProfessors request fails.
+            prof_obj (Professor): The professor object that will get a Rating object.
+            html (Tag): The HTML content that will be used to make the Rating object.
         """
         QUAL_DIV_CLASS = 'RatingValue__Numerator-qw8sqy-2 duhvlP'
         DIFF_DIV_CLASS = 'FeedbackItem__FeedbackNumber-uof32n-1 ecFgca'
         TAG_CLASS = 'Tag-bs9vf4-0 bmtbjB'
 
-        req = requests.get(url)
-        req.raise_for_status()
-
-        page = BeautifulSoup(req.text, 'html.parser')
-
         # Get the overall rating
-        quality = page.find('div', class_=QUAL_DIV_CLASS).get_text(strip=True).upper()
+        quality = html.find('div', class_=QUAL_DIV_CLASS).get_text(strip=True).upper()
         if quality != 'N/A':
             quality = float(quality)
 
         # Get the difficulty rating
-        element = page.find('div', class_=DIFF_DIV_CLASS)
+        element = html.find('div', class_=DIFF_DIV_CLASS)
         difficulty = element.get_text(strip=True) if element is not None else 'N/A'
         if difficulty != 'N/A':
+            print(difficulty)
             difficulty = float(difficulty)
 
         # Collect all tags with most recent reviews
         tags = {
             tag.get_text(' ', strip=True).upper()
-            for tag in page.find_all('span', class_=TAG_CLASS)
+            for tag in html.find_all('span', class_=TAG_CLASS)
         }
 
-        return Rating(
+        prof_obj.rating = Rating(
             quality=quality,
             difficulty=difficulty,
             tags=tags
         )
-
-
-    def _get_professor_statistics(self, prof_name: str) -> None:
-        """
-        Fetches statistics for a professor from RateMyProfessors.
-
-        Args:
-            prof_name (str): The professor's name.
-
-        Raises:
-            requests.HTTPError: If the RateMyProfessors request fails.
-        """
-        PROF_CARD_CLASS = 'TeacherCard__StyledTeacherCard-syjs0d-0 eerjaA'
-
-        professor = self.__professors.get(prof_name)
-
-        if professor is None:
-            return
-
-        professor_url = f'{self.__SJSU_RMP_URL}{quote(prof_name)}'
-
-        req = requests.get(professor_url)
-        req.raise_for_status()
-
-        page = BeautifulSoup(req.text, 'html.parser')
-
-        for anchor in page.find_all(
-            'a',
-            class_=PROF_CARD_CLASS,
-        ):
-            anchor_text = anchor.get_text(' ', strip=True)
-            if prof_name.lower() not in anchor_text.lower():
-                continue
-
-            href = anchor.get('href')
-            if not href:
-                continue
-
-            full_url = urljoin(professor_url, href)
-
-            professor.rating = self._parse_professor_stats(full_url)
-            return
 
 
     def get_professor_data(self, request: Request) -> Response:
@@ -533,9 +482,48 @@ class Collector:
             Response: The response object containing the fetched professor data.
         """
         result = self._get_professors_per_course(request)
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+
+            try:
+                page = browser.new_page()
+
+                for prof_name in self.__professors:
+                    professor_url = f'{self.__SJSU_RMP_URL}{quote(prof_name)}'
+                    page.goto(professor_url)
+
+                    prof_obj = self.__professors.get(prof_name)
+
+                    # Find the card of the professor on RMP
+                    card = page.locator('a[href^="/professor/"]').first
+                    if card.count() == 0:
+                        prof_obj.rating = None
+                        continue
+
+                    # Get the link to actual professor page
+                    href = card.get_attribute("href")
+                    if href is None:
+                        prof_obj.rating = None
+                        None
+
+                    # Go to the link
+                    url = urljoin(self.__SJSU_RMP_URL, href)
+                    page.goto(url)
+
+                    # Get HTML content and use function to parse
+                    main_locator = page.locator('main').first
+                    main_locator.wait_for(state='visible')
+                    main_html = main_locator.evaluate('(element) => element.outerHTML')
+                    main_tag = BeautifulSoup(main_html, 'html.parser').find('main')
+
+                    self._get_professor_statistics(prof_obj, main_tag)
+
+            finally:
+                browser.close()
         
-        for prof in self.__professors:
-            self._get_professor_statistics(prof)
+        # for prof in self.__professors:
+        #     self._get_professor_statistics(prof)
             
         return Response(
             request=request,

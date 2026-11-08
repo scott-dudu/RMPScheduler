@@ -87,7 +87,7 @@ def test_get_semester_url_raises_when_not_published(
     monkeypatch,
     collector,
 ):
-    html = "<li>Fall 2026 Class Schedule</li>"
+    html = "<a>Fall 2026 Class Schedule</a>"
 
     monkeypatch.setattr(
         module.requests,

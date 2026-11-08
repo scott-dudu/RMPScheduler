@@ -1,10 +1,10 @@
 import pytest
 
 from models import Course, Request, Semester
-from sjsu_rmp_collect import (
-    Collector,
-    CoursesNotFoundError,
-)
+from sjsu_rmp_collect import Collector, CoursesNotFoundError, Headers
+
+
+SPRING_2027_URL = "https://www.sjsu.edu/classes/schedules/spring-2027.php"
 
 
 @pytest.mark.integration
@@ -17,6 +17,18 @@ def test_spring_2027_url_exists():
     )
 
     assert "/classes/schedules/spring-2027.php" in result.lower()
+
+
+@pytest.mark.integration
+def test_parse_header():
+    collector = Collector()
+    result = collector._parse_header(SPRING_2027_URL)
+
+    assert result[Headers.SECTION.value] == 0
+    assert result[Headers.MODE.value] == 2
+    assert result[Headers.DAYS.value] == 7
+    assert result[Headers.TIME.value] == 8
+    assert result[Headers.INSTRUCTOR.value] == 9
 
 
 @pytest.mark.integration

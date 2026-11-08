@@ -19,30 +19,6 @@ def make_tag(html):
     return BeautifulSoup(html, "html.parser").find()
 
 
-def test_parse_header(parser):
-    html = """
-    <tr>
-        <th>Section</th>
-        <th>Class Number</th>
-        <th>Mode of Instruction</th>
-        <th>Course Title</th>
-        <th>Days</th>
-        <th>Times</th>
-        <th>Instructor</th>
-    </tr>
-    """
-
-    header = BeautifulSoup(html, "html.parser").find_all("th")
-
-    result = parser._parse_header(header)
-
-    assert result[module.Headers.SECTION.value] == 0
-    assert result[module.Headers.MODE.value] == 2
-    assert result[module.Headers.DAYS.value] == 4
-    assert result[module.Headers.TIME.value] == 5
-    assert result[module.Headers.INSTRUCTOR.value] == 6
-
-
 @pytest.mark.parametrize(
     ("html", "expected"),
     [

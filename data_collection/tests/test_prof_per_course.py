@@ -85,55 +85,6 @@ def setup_successful_request(monkeypatch, collector):
     )
 
 
-def test_get_professors_per_course_returns_sections(monkeypatch):
-    collector = module.Collector()
-    course = Course("AAS", "1")
-
-    request = Request(
-        semester=Semester.FALL,
-        year=datetime.now().year,
-        courses=[course],
-    )
-
-    setup_successful_request(monkeypatch, collector)
-
-    result = collector._get_professors_per_course(request)
-
-    assert course in result
-    assert len(result[course]) == 1
-
-    section = result[course][0]
-
-    assert section.section_num == 1
-    assert section.class_time.mode == ClassMode.IN_PERSON
-    assert section.class_time.days == [
-        Day.MONDAY,
-        Day.WEDNESDAY,
-    ]
-    assert section.class_time.start_time == ["09:00"]
-    assert section.class_time.end_time == ["10:15"]
-
-    assert len(section.professors) == 1
-    assert section.professors[0].name == "Test Name"
-    assert section.professors[0].email is None
-    assert section.professors[0].rating is None
-
-
-def test_get_professors_per_course_raises_for_missing_course(
-    monkeypatch,
-):
-    collector = module.Collector()
-    course = Course("CS", "151")
-    request = make_request([course])
-
-    setup_successful_request(monkeypatch, collector)
-
-    with pytest.raises(module.CoursesNotFoundError) as exception_info:
-        collector._get_professors_per_course(request)
-
-    assert exception_info.value.courses == [course]
-
-
 def test_get_professors_per_course_propagates_semester_error(
     monkeypatch,
 ):

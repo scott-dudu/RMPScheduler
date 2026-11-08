@@ -64,7 +64,8 @@ class Collector:
             requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
         """
         # Fetch the HTML content and raise an exception if the request fails.
-        req = requests.get(f'{self.__SJSU_URL}{self.__SEM_PATH}')
+        url = urljoin(self.__SJSU_URL, self.__SEM_PATH)
+        req = requests.get(url)
         req.raise_for_status()
         
         # Parse the HTML content
@@ -74,7 +75,7 @@ class Collector:
         str_to_find = f'{semester.value} {year}'
         semester_element = next(
             (
-                item for item in page.find_all('li')
+                item for item in page.find_all('a')
                 if str_to_find in item.get_text(' ', strip=True)
             ),
             None
@@ -84,8 +85,7 @@ class Collector:
             raise SemesterNotFoundError('Semester not found', semester, year)
         
         # Get the URL within the element
-        link = semester_element.find('a')
-        href = link.get('href') if link else None
+        href = semester_element.get('href') if semester_element else None
         if href is None:
             raise SemesterNotFoundError('Semester has not been published', semester, year)
         
@@ -93,16 +93,22 @@ class Collector:
         return href
 
 
-    def _parse_header(self, header: Iterable[Tag]) -> dict[str, int]:
+    def _parse_header(self, url: str) -> dict[str, int]:
         """
         Parses the header of the SJSU class schedule table to get the index of each relevant column.
         
         Args:
-            header (Iterable[Tag]): An iterable of header elements from the SJSU class schedule table.
+            url (str): A URL to the SJSU class schedule table.
             
         Returns:
             dict[str, int]: A dictionary mapping each relevant column name to its index.
         """
+        req = requests.get(url)
+        req.raise_for_status()
+        
+        page = BeautifulSoup(req.text, 'html.parser')
+        header = page.find_all('th')
+        
         header_mapping = {}
         for index, item in enumerate(header):
             text = item.get_text(strip=True)
@@ -110,6 +116,7 @@ class Collector:
                 if header_name.value in text:
                     header_mapping[header_name.value] = index
                     break
+        
         return header_mapping
 
 
@@ -288,7 +295,7 @@ class Collector:
         return sections
 
 
-    def _find_classes(url: str, courses: list[Course]) -> dict[Course, list[Tag]]:
+    def _find_classes(self, url: str, courses: list[Course]) -> dict[Course, list[Tag]]:
         """
         Uses Playwright to interact with the website and find all classes related to each course.
 
@@ -309,43 +316,76 @@ class Collector:
         # Start playwright
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page()
+            
+            try:
+                page = browser.new_page()
+                page.goto(url, wait_until="domcontentloaded")
 
-            # Go to the url
-            page.goto(url, wait_until='domcontentloaded')
+                load_button = page.locator('#btnLoadTable')
+                load_button.wait_for(state='visible')
+                load_button.click()
 
-            # Load the classes
-            load_button = page.get_by_role(
-                'button',
-                name='Load Class Schedule'
-            )
-            load_button.click()
+                search_bar = page.get_by_role("searchbox")
+                next_button = page.locator("#classSchedule_next")
 
-            # Get the search bar
-            search_bar = page.get_by_role('searchbox')
+                for course in courses:
+                    tags = []
+                    course_not_found = False
 
-            # Search each class
-            for course in courses:
-                # Search for specific course
-                course_name = str(course)
-                search_bar.fill(course_name)
-                search_bar.press('Enter')
-                page.wait_for_load_state('networkidle')
+                    search_bar.fill(str(course))
 
-                # Get the next button
-                next_button = page.locator('#classSchedule_next')
+                    # Give DataTables time to update the filtered rows.
+                    page.wait_for_timeout(500)
 
-                # Go through all pages and save any rows that fit the course name
-                tags = []
-                while True:
-                    rows = page.locator('#classSchedule tbody tr:visible')
+                    while True:
+                        rows = page.locator("#classSchedule tbody tr:visible")
 
+                        # DataTables may use a visible empty row.
+                        empty_message = page.locator("#classSchedule tbody td.dataTables_empty")
+                        if empty_message.is_visible():
+                            course_not_found = True
+                            break
 
-                    # Break if no more pages left
-                    classes = next_button.get_attribute("class") or ""
-                    if "disabled" in classes:
-                        break
+                        for row in rows.all():
+                            row_html = row.evaluate("(element) => element.outerHTML")
 
+                            soup = BeautifulSoup(row_html, "html.parser")
+                            course_tag = soup.find("tr")
+
+                            if course_tag is not None:
+                                tags.append(course_tag)
+
+                        # Check if there are more pages
+                        classes = next_button.get_attribute("class") or ""
+                        if "disabled" in classes:
+                            break
+
+                        previous_first_row = rows.first.inner_text()
+                        next_button.click()
+                        page.wait_for_function(
+                            """
+                            old_text => {
+                                const row = document.querySelector(
+                                    "#classSchedule tbody tr"
+                                );
+                                return row && row.innerText !== old_text;
+                            }
+                            """,
+                            previous_first_row,
+                        )
+
+                    if course_not_found or not tags:
+                        courses_not_found.append(course)
+                    else:
+                        courses_found[course] = tags
+
+            finally:
+                browser.close()
+
+        if courses_not_found:
+            raise CoursesNotFoundError("Courses not found", courses_not_found)
+
+        return courses_found
 
 
     def _get_professors_per_course(self, request: Request) -> dict[Course, list[Section]]:
@@ -365,7 +405,7 @@ class Collector:
         """
         # Get the URL of the class schedules for the given semester and year.
         semester_url = self._get_semester_url(request.semester, request.year)
-        classes_url = f'{self.__SJSU_URL}{semester_url}'
+        classes_url = urljoin(self.__SJSU_URL, semester_url)
         
         # Get the header mapping.
         header = self._parse_header(classes_url)

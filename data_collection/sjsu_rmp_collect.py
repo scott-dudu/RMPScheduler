@@ -452,15 +452,21 @@ class Collector:
             quality = float(quality)
 
         # Get the difficulty rating
-        element = html.find('div', class_=DIFF_DIV_CLASS)
-        difficulty = element.get_text(strip=True) if element is not None else 'N/A'
-        if difficulty != 'N/A':
-            print(difficulty)
-            difficulty = float(difficulty)
+        difficulty = "N/A"
+        for element in html.find_all("div", class_=DIFF_DIV_CLASS):
+            parent_text = element.parent.get_text(" ",strip=True).lower()
+
+            if "level of difficulty" in parent_text:
+                raw_difficulty = element.get_text(strip=True)
+
+                if not raw_difficulty.endswith("%"):
+                    difficulty = float(raw_difficulty)
+
+                break
 
         # Collect all tags with most recent reviews
         tags = {
-            tag.get_text(' ', strip=True).upper()
+            tag.get_text(strip=True).upper()
             for tag in html.find_all('span', class_=TAG_CLASS)
         }
 

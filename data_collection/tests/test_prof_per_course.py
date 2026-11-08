@@ -1,6 +1,7 @@
 import pytest
 
 import sjsu_rmp_collect as module
+from sjsu_rmp_collect import SectionsNotFoundError, Collector
 from models import *
 
 
@@ -140,3 +141,61 @@ def test_get_professors_per_course_propagates_http_error(
         match="Request failed",
     ):
         collector._get_professors_per_course(request)
+
+
+def test_get_professors_per_course_raises_for_no_matching_sections(
+    monkeypatch,
+):
+    collector = Collector()
+    course = Course("CS", "146")
+
+    request = Request(
+        semester=Semester.SPRING,
+        year=datetime.now().year,
+        courses=[course],
+        timeblocks=[
+            TimeBlock(
+                day=Day.MONDAY,
+                start_time="09:00",
+                end_time="10:00",
+            )
+        ],
+    )
+
+    monkeypatch.setattr(
+        collector,
+        "_get_semester_url",
+        lambda semester, year: "/classes/spring-2027.php",
+    )
+
+    monkeypatch.setattr(
+        collector,
+        "_parse_header",
+        lambda url: {},
+    )
+
+    monkeypatch.setattr(
+        collector,
+        "_find_classes",
+        lambda url, courses: {
+            course: ["fake course element"],
+        },
+    )
+
+    monkeypatch.setattr(
+        collector,
+        "_get_sections",
+        lambda header, course_elements, timeblocks: [],
+    )
+
+    with pytest.raises(SectionsNotFoundError) as exception_info:
+        collector._get_professors_per_course(request)
+
+    error = exception_info.value
+
+    assert error.courses == [course]
+    assert str(error) == (
+        "No sections found for these courses "
+        "(maybe due to timeblocks):\n"
+        "\tCS 146"
+    )

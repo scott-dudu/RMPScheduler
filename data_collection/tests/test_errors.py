@@ -1,6 +1,6 @@
 import pytest
 from models import Semester, Course
-from sjsu_rmp_collect import SemesterNotFoundError, CoursesNotFoundError
+from sjsu_rmp_collect import SemesterNotFoundError, CoursesNotFoundError, SectionsNotFoundError
 
 
 def test_semester_not_found_error_stores_attributes():
@@ -85,3 +85,65 @@ def test_courses_not_found_error_can_be_raised():
 
     assert error.courses == courses
     assert str(error) == "Courses not found:\n\tCS 160"
+
+
+def test_sections_not_found_error_stores_courses():
+    courses = [
+        Course("CS", "146"),
+        Course("CS", "151"),
+    ]
+
+    error = SectionsNotFoundError(
+        "No sections found",
+        courses,
+    )
+
+    assert error.args == ("No sections found",)
+    assert error.courses == courses
+
+
+def test_sections_not_found_error_string():
+    courses = [
+        Course("CS", "146"),
+        Course("CS", "151"),
+    ]
+
+    error = SectionsNotFoundError(
+        "No sections found",
+        courses,
+    )
+
+    expected = (
+        "No sections found:\n"
+        "\tCS 146\n"
+        "\tCS 151"
+    )
+
+    assert str(error) == expected
+
+
+def test_sections_not_found_error_with_no_courses():
+    error = SectionsNotFoundError(
+        "No sections found",
+        [],
+    )
+
+    assert str(error) == "No sections found:"
+
+
+def test_sections_not_found_error_can_be_raised():
+    course = Course("CS", "146")
+
+    with pytest.raises(SectionsNotFoundError) as exception_info:
+        raise SectionsNotFoundError(
+            "No sections found",
+            [course],
+        )
+
+    error = exception_info.value
+
+    assert error.courses == [course]
+    assert str(error) == (
+        "No sections found:\n"
+        "\tCS 146"
+    )

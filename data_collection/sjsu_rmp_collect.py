@@ -29,6 +29,19 @@ class CoursesNotFoundError(Exception):
         if courses_text:
             courses_text = f'\n\t{courses_text}'
         return f'{self.args[0]}:{courses_text}'
+
+
+class SectionsNotFoundError(Exception):
+    """Exception raise when there are no available sections after filtering with timeblocks"""
+    def __init__(self, message:str, courses: list[Course]):
+        super().__init__(message)
+        self.courses = courses
+
+    def __str__(self):
+        courses_text = '\n\t'.join([str(course) for course in self.courses])
+        if courses_text:
+            courses_text = f'\n\t{courses_text}'
+        return f'{self.args[0]}:{courses_text}'
     
 
 class Headers(Enum):
@@ -424,6 +437,7 @@ class Collector:
         Raises:
             SemesterNotFoundError: If the semester is not found in the SJSU class schedule.
             CoursesNotFoundError: If any of the courses are not found in the SJSU class schedule for the given semester.
+            SectionsNotFoundError: If no sections for specific courses that fit time preferences.
             requests.HTTPError: If the HTTP request to the SJSU class schedule fails.
         """
         # Get the URL of the class schedules for the given semester and year.
@@ -439,12 +453,26 @@ class Collector:
         # Search for specific classes using playwright
         courses_to_fetch = self._find_classes(classes_url, request.courses)
 
+        no_sections = []
         # Comb through the classes that were found
         for course in courses_to_fetch:
             course_elements = courses_to_fetch.get(course)
             course_sections = self._get_sections(header, course_elements, request.timeblocks)
+
+            # If there are no available sections, add it to the error message
+            if not course_sections:
+                no_sections.append(course)
+
+            # Do not add valid courses if an invalid one exists
+            if no_sections:
+                continue
+
             sections[course] = course_sections
 
+        # Raise an exception if there was an invalid course
+        if no_sections:
+            raise SectionsNotFoundError('No sections found for these courses (maybe due to timeblocks)', no_sections)
+        
         return sections
 
 

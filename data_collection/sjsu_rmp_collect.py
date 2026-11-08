@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
 from collections.abc import Iterable
-from itertools import chain
 from enum import Enum
 from models import *
 from urllib.parse import quote, urljoin
@@ -43,7 +42,6 @@ class Collector:
     __SJSU_URL = 'https://www.sjsu.edu'
     __SEM_PATH = '/classes/schedules/index.php'
     __SJSU_RMP_URL = 'https://www.ratemyprofessors.com/search/professors/881?q='
-    __PROF_CARD_CLASS = 'TeacherCard__StyledTeacherCard-syjs0d-0 eerjaA'
     
     def __init__(self):
         self.__professors = {}
@@ -130,11 +128,13 @@ class Collector:
         Returns:
             list[Day]: A list of Day enums representing the days of the week for the class.
         """
-        text = days_tag.get_text(' ', strip=True)
-        if text.upper() == 'TBA':
-            return [Day.TBA]
-
-        text = text.split() if ' ' in text else list(text)
+        text = days_tag.get_text('/', strip=True).upper().split('/')
+        days = []
+        for t in text:
+            if (t == 'TBA'):
+                days.append(t)
+            else:
+                days += list(t)
         
         day_mapping = {
             'M': Day.MONDAY,
@@ -143,10 +143,11 @@ class Collector:
             'R': Day.THURSDAY,
             'F': Day.FRIDAY,
             'S': Day.SATURDAY,
-            'U': Day.SUNDAY
+            'U': Day.SUNDAY,
+            'TBA' : Day.TBA
         }
         
-        return [day_mapping.get(day.strip()) for day in text]
+        return [day_mapping.get(day.strip()) for day in days]
 
 
     def _normalize_time(self, time_str: str) -> str:
@@ -162,6 +163,10 @@ class Collector:
         time_str = time_str.strip().upper()
         if not time_str:
             return ""
+
+        # Account for TBA times
+        if time_str == 'TBA':
+            return time_str
         
         # Split the time into hours and minutes
         hours, minutes = time_str.split(':')
@@ -325,6 +330,10 @@ class Collector:
                 load_button.wait_for(state='visible')
                 load_button.click()
 
+                # Expand search size to reduce pagination overhead
+                page.locator('select[name="classSchedule_length"]').select_option("100")
+                page.wait_for_timeout(200)
+
                 search_bar = page.get_by_role("searchbox")
                 next_button = page.locator("#classSchedule_next")
 
@@ -422,36 +431,6 @@ class Collector:
             course_sections = self._get_sections(header, course_elements)
             sections[course] = course_sections
 
-        # # Find the courses in the HTML content and fetch the professors and times for each course.
-        # for course in courses_to_fetch:
-        #     # Find the course in the HTML content
-        #     str_to_find = str(course)
-        #     course_elements = (
-        #         item for item in page.find_all('tr')
-        #         if str_to_find in item.get_text(' ', strip=True)
-        #     )
-
-        #     # Check if the course was found in the HTML content
-        #     first_element = next(course_elements, None)
-        #     if first_element is None:
-        #         courses_not_found.append(course)
-        #         continue
-
-        #     # If a course was not found, do not process valid courses
-        #     if courses_not_found:
-        #         continue
-
-        #     # Put the first element back into the generator to iterate over all elements
-        #     course_elements = chain([first_element], course_elements)
-
-        #     # Fetch the sections for the course
-        #     course_sections = self._get_sections(header, course_elements)
-        #     sections[course] = course_sections
-        
-        # # If any courses were not found, raise an exception
-        # if courses_not_found:
-        #     raise CoursesNotFoundError('Courses not found', courses_not_found)
-
         return sections
     
     
@@ -511,6 +490,8 @@ class Collector:
         Raises:
             requests.HTTPError: If the RateMyProfessors request fails.
         """
+        PROF_CARD_CLASS = 'TeacherCard__StyledTeacherCard-syjs0d-0 eerjaA'
+
         professor = self.__professors.get(prof_name)
 
         if professor is None:
@@ -525,7 +506,7 @@ class Collector:
 
         for anchor in page.find_all(
             'a',
-            class_=self.__PROF_CARD_CLASS,
+            class_=PROF_CARD_CLASS,
         ):
             anchor_text = anchor.get_text(' ', strip=True)
             if prof_name.lower() not in anchor_text.lower():

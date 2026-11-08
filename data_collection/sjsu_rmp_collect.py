@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
 from collections.abc import Iterable
 from enum import Enum
-from models import *
+from .models import *
 from urllib.parse import quote, urljoin
 from playwright.sync_api import sync_playwright
 

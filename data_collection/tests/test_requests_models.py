@@ -1,14 +1,14 @@
 import pytest
 from datetime import datetime
 
-from models import Course, Request, Semester, TimeBlock
+from models import Course, Day, Request, Semester, TimeBlock
 
 
 CURRENT_YEAR = datetime.now().year
 
 
 def valid_timeblocks():
-    return [TimeBlock("09:00", "10:15")]
+    return [TimeBlock(Day.MONDAY, "09:00", "10:15")]
 
 
 def valid_courses():
@@ -20,8 +20,9 @@ def valid_courses():
 # -------------------------
 
 def test_valid_timeblock():
-    timeblock = TimeBlock("09:00", "17:30")
+    timeblock = TimeBlock(Day.MONDAY, "09:00", "17:30")
 
+    assert timeblock.day == Day.MONDAY
     assert timeblock.start_time == "09:00"
     assert timeblock.end_time == "17:30"
 
@@ -35,7 +36,7 @@ def test_valid_timeblock():
     ],
 )
 def test_valid_24_hour_times(start_time, end_time):
-    TimeBlock(start_time, end_time)
+    TimeBlock(Day.TUESDAY, start_time, end_time)
 
 
 @pytest.mark.parametrize(
@@ -51,17 +52,42 @@ def test_valid_24_hour_times(start_time, end_time):
 )
 def test_invalid_time_format(start_time, end_time):
     with pytest.raises(ValueError, match="Expected HH:MM"):
-        TimeBlock(start_time, end_time)
+        TimeBlock(Day.WEDNESDAY, start_time, end_time)
+
+
+def test_tba_day_is_invalid():
+    with pytest.raises(
+        ValueError,
+        match="Time block cannot be for a TBA day",
+    ):
+        TimeBlock(Day.TBA, "09:00", "10:00")
+
+
+def test_invalid_day_type():
+    with pytest.raises(TypeError, match="Day must be of type Day"):
+        TimeBlock("Monday", "09:00", "10:00")
 
 
 def test_non_string_start_time():
     with pytest.raises(TypeError, match="Start time must be a string"):
-        TimeBlock(900, "10:00")
+        TimeBlock(Day.MONDAY, 900, "10:00")
 
 
 def test_non_string_end_time():
     with pytest.raises(TypeError, match="End time must be a string"):
-        TimeBlock("09:00", 1000)
+        TimeBlock(Day.MONDAY, "09:00", 1000)
+
+
+def test_timeblock_overlap_on_same_day():
+    timeblock = TimeBlock(Day.MONDAY, "09:00", "10:00")
+
+    assert timeblock.overlap(Day.MONDAY, "09:30", "10:30")
+
+
+def test_timeblock_does_not_overlap_on_different_day():
+    timeblock = TimeBlock(Day.MONDAY, "09:00", "10:00")
+
+    assert not timeblock.overlap(Day.TUESDAY, "09:30", "10:30")
 
 
 # -------------------------
@@ -224,7 +250,7 @@ def test_timeblocks_not_list():
             semester="fall",
             year=CURRENT_YEAR,
             courses=valid_courses(),
-            timeblocks=TimeBlock("09:00", "10:00"),
+            timeblocks=TimeBlock(Day.MONDAY, "09:00", "10:00"),
         )
 
 

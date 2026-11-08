@@ -84,6 +84,14 @@ class TimeBlock:
                 "Expected HH:MM in 24-hour format."
             )
 
+        if self.end_time <= self.start_time:
+            raise ValueError("End time must be after start time")
+
+    def overlap(self, day: Day, start: str, end: str) -> bool:
+        if self.day != day:
+            return False
+        return self.start_time < end and start < self.end_time
+
 
 @dataclass(frozen=True)
 class Request:

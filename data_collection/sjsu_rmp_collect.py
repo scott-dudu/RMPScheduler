@@ -257,20 +257,36 @@ class Collector:
         return professors
 
 
-    def _get_sections(self, header: dict[str, int], course_elements: Iterable[Tag]) -> list[Section]:
+    def _get_sections(self, header: dict[str, int], course_elements: Iterable[Tag], timeblocks: list[TimeBlock]) -> list[Section]:
         """
         Fetches the sections for the given course elements
 
         Args:
             header (dict[str, int]): A dictionary mapping each relevant column name to its index.
             course_elements (Iterable[Tag]): An iterable of course elements from the SJSU class schedule.
-            
+            timeblocks (list[TimeBlock]): A list of time blocks where no classes should appear.
+
         Returns:
             list[Section]: A list of section objects for the given course elements.
         """
         sections = []
         for course in course_elements:
             course_data = course.find_all('td')
+
+            # See if time of section violates time blocks
+            start_times, end_times = self._parse_time(course_data[header[Headers.TIME.value]])
+            days = self._parse_days(course_data[header[Headers.DAYS.value]])
+
+            violates = any(
+                timeblock.overlap(day, start, end)
+                for timeblock in timeblocks
+                for day in days
+                for start, end in zip(start_times, end_times)
+            )
+
+            # If a time violates a timeblock, skip the section
+            if violates:
+                continue
             
             # Get the section number, class time, and professors for the section of the course
             professors = self._parse_professors(course_data[header[Headers.INSTRUCTOR.value]])
@@ -279,14 +295,12 @@ class Collector:
             
             section_num = course_data[header[Headers.SECTION.value]].get_text(strip=True)
             mode = ClassMode(course_data[header[Headers.MODE.value]].get_text(strip=True).lower())
-            days = self._parse_days(course_data[header[Headers.DAYS.value]])
-            start_time, end_time = self._parse_time(course_data[header[Headers.TIME.value]])
             
             class_time = ClassTime(
                 mode=mode,
                 days=days,
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_times,
+                end_time=end_times
             )
 
             section_num = int(section_num.split()[-1].rstrip(')'))
@@ -428,7 +442,7 @@ class Collector:
         # Comb through the classes that were found
         for course in courses_to_fetch:
             course_elements = courses_to_fetch.get(course)
-            course_sections = self._get_sections(header, course_elements)
+            course_sections = self._get_sections(header, course_elements, request.timeblocks)
             sections[course] = course_sections
 
         return sections
